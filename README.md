@@ -25,6 +25,9 @@ fown labels apply --repo-url https://github.com/your-username/your-repo --file l
 
 # Sync project settings
 fown projects sync --repo-url https://github.com/your-username/your-repo --config project_config.yaml
+
+# clear all labels
+fown labels clear-all
 ```
 
 ## Requirements

@@ -134,6 +134,39 @@ def apply(repo_url, labels_file):
             click.echo(f"[WARNING] name 또는 color가 없는 라벨 항목이 있습니다: {label}")
 
 
+@labels.command(name="clear-all")
+@click.option(
+    "--repo-url",
+    default=None,
+    help="GitHub Repository URL. 지정하지 않으면 현재 디렉터리의 origin 원격을 사용합니다."
+)
+def clear_all(repo_url):
+    """레이포지토리의 모든 라벨을 삭제합니다."""
+    check_gh_installed()
+    if not repo_url:
+        repo_url = get_git_repo_url()
+    repo = extract_repo_name(repo_url)
+    # 전체 라벨 조회
+    result = subprocess.run(
+        ["gh", "label", "list", "--repo", repo, "--json", "name"],
+        check=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True
+    )
+    labels = json.loads(result.stdout)
+    for label in labels:
+        name = label.get("name")
+        try:
+            subprocess.run(
+                ["gh", "label", "delete", name, "--repo", repo, "--yes"],
+                check=True
+            )
+            click.echo(f"[OK] Deleted label: {name}")
+        except subprocess.CalledProcessError:
+            click.echo(f"[ERROR] Failed to delete label: {name}")
+
+
 @main.group()
 def projects():
     """Projects 관련 명령어"""
