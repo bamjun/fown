@@ -4,6 +4,7 @@ import yaml
 import os
 import re
 import json
+from fown import __version__
 
 
 def check_gh_installed():
@@ -91,10 +92,17 @@ def create_label(name, color, description, repo):
         click.echo(f"[SKIP] Label '{name}' already exists or error occurred.")
 
 
-@click.group()
-def main():
+@click.group(invoke_without_command=True)
+@click.option('--version', '-v', is_flag=True, help='Show version and exit')
+@click.pass_context
+def main(ctx, version):
     """fown 명령어 그룹"""
-    pass
+    if version:
+        click.echo(f"fown 버전 {__version__}")
+        return
+
+    if ctx.invoked_subcommand is None:
+        click.echo(ctx.get_help())
 
 
 @main.group()
@@ -146,25 +154,54 @@ def clear_all(repo_url):
     if not repo_url:
         repo_url = get_git_repo_url()
     repo = extract_repo_name(repo_url)
-    # 전체 라벨 조회
-    result = subprocess.run(
-        ["gh", "label", "list", "--repo", repo, "--json", "name"],
-        check=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True
-    )
-    labels = json.loads(result.stdout)
-    for label in labels:
-        name = label.get("name")
+    click.echo(f"[INFO] 레포지토리 {repo}의 라벨을 삭제합니다...")
+    try:
+        # 전체 라벨 조회 (JSON 형식)
+        result = subprocess.run(
+            ["gh", "label", "list", "--repo", repo, "--json", "name", "--limit", "1000"],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+        
+        if not result.stdout.strip():
+            click.echo("[WARNING] 라벨을 찾을 수 없습니다.")
+            return
+        
         try:
+            labels = json.loads(result.stdout)
+            click.echo(f"[INFO] {len(labels)}개의 라벨을 찾았습니다.")
+        except json.JSONDecodeError as e:
+            click.echo(f"[ERROR] JSON 파싱 오류: {str(e)}")
+            click.echo(f"[DEBUG] 출력: {result.stdout[:100]}...")
+            return
+    except subprocess.CalledProcessError as e:
+        click.echo(f"[ERROR] 라벨 목록 가져오기 실패: {e}", err=True)
+        if e.stderr:
+            click.echo(f"[DEBUG] 오류 출력: {e.stderr}", err=True)
+        return
+
+    for label in labels:
+        name = label.get("name", "")
+        if not name:
+            click.echo("[WARNING] 이름 없는 라벨 항목 건너뜀")
+            continue
+        try:
+            click.echo(f"[INFO] 라벨 삭제 중: {name}")
             subprocess.run(
                 ["gh", "label", "delete", name, "--repo", repo, "--yes"],
-                check=True
+                check=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
             )
             click.echo(f"[OK] Deleted label: {name}")
-        except subprocess.CalledProcessError:
-            click.echo(f"[ERROR] Failed to delete label: {name}")
+        except subprocess.CalledProcessError as e:
+            click.echo(f"[ERROR] 라벨 삭제 실패 '{name}': {e}")
+            if e.stderr:
+                click.echo(f"[DEBUG] 오류 출력: {e.stderr.decode('utf-8', errors='replace')}", err=True)
+    
+    click.echo("[INFO] 라벨 삭제 작업 완료")
 
 
 @main.group()
