@@ -21,10 +21,10 @@ pip install fown
 
 ```bash
 # Apply labels from a file
-fown labels apply --repo your-username/your-repo --file labels.yaml
+fown labels apply --repo-url https://github.com/your-username/your-repo --file labels.yaml
 
 # Sync project settings
-fown projects sync --repo your-username/your-repo --config project_config.yaml
+fown projects sync --repo-url https://github.com/your-username/your-repo --config project_config.yaml
 ```
 
 ## Requirements
