@@ -162,24 +162,32 @@ def clear_all(repo_url):
             check=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            text=True
         )
         
-        if not result.stdout.strip():
+        stdout = result.stdout
+        if stdout is None:
+            click.echo("[ERROR] 라벨 목록을 가져올 수 없습니다.")
+            return
+            
+        # 바이너리 출력을 UTF-8로 디코딩 (errors='replace'로 잘못된 바이트 처리)
+        stdout_text = stdout.decode('utf-8', errors='replace').strip()
+        
+        if not stdout_text:
             click.echo("[WARNING] 라벨을 찾을 수 없습니다.")
             return
         
         try:
-            labels = json.loads(result.stdout)
+            labels = json.loads(stdout_text)
             click.echo(f"[INFO] {len(labels)}개의 라벨을 찾았습니다.")
         except json.JSONDecodeError as e:
             click.echo(f"[ERROR] JSON 파싱 오류: {str(e)}")
-            click.echo(f"[DEBUG] 출력: {result.stdout[:100]}...")
+            click.echo(f"[DEBUG] 출력: {stdout_text[:100]}...")
             return
     except subprocess.CalledProcessError as e:
         click.echo(f"[ERROR] 라벨 목록 가져오기 실패: {e}", err=True)
         if e.stderr:
-            click.echo(f"[DEBUG] 오류 출력: {e.stderr}", err=True)
+            error_text = e.stderr.decode('utf-8', errors='replace')
+            click.echo(f"[DEBUG] 오류 출력: {error_text}", err=True)
         return
 
     for label in labels:
