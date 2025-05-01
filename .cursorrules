@@ -1,8 +1,3 @@
----
-description: 
-globs: 
-alwaysApply: true
----
 # gitcommit message
 - **Feat**: Implement new feature  
 - **Add**: Add asset files  
