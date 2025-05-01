@@ -1,7 +1,7 @@
 ---
 description: 
 globs: 
-alwaysApply: false
+alwaysApply: true
 ---
 # gitcommit message
 - **Feat**: Implement new feature  
@@ -65,3 +65,4 @@ Write the first line of the commit message in under 30 characters, and add detai
 - chore description
 - chore description
 ```
+

@@ -47,9 +47,9 @@ More usage examples are coming soon!
 
 ## Docs
 
-[Pypi for TestServer](https://test.pypi.org/project/fown/)
-[Pypi for MainServer](https://pypi.org/project/fown/)
-[Github](https://github.com/bamjun/fown)
+[Pypi for TestServer](https://test.pypi.org/project/fown/)  
+[Pypi for MainServer](https://pypi.org/project/fown/)  
+[Github](https://github.com/bamjun/fown)  
 
 ## License
 
