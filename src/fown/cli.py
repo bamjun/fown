@@ -15,7 +15,7 @@ def check_gh_installed():
             stderr=subprocess.PIPE
         )
     except Exception:
-        click.echo("GitHub CLI(gh)가 설치되어 있지 않습니다. 설치 후 다시 시도하세요.", err=True)
+        click.echo("GitHub CLI(gh)가 설치되어 있지 않습니다. 설치 후 다시 시도하세요. site: https://cli.github.com/", err=True)
         raise SystemExit(1)
 
 
@@ -51,11 +51,26 @@ def get_existing_projects(repo):
         return []
 
 
+def get_git_repo_url():
+    try:
+        result = subprocess.run(
+            ["git", "remote", "get-url", "origin"],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+        return result.stdout.strip()
+    except Exception:
+        click.echo("현재 디렉터리가 git 저장소가 아니거나 origin 원격을 찾을 수 없습니다.", err=True)
+        raise SystemExit(1)
+
+
 def extract_repo_name(repo_url):
-    match = re.match(r"https://github\.com/([^/]+)/([^/]+)", repo_url)
+    match = re.match(r"(?:https://github\.com/|git@github\.com:)([^/]+)/([^/]+?)(?:\.git)?$", repo_url)
     if match:
         owner = match.group(1)
-        repo = match.group(2).replace(".git", "")
+        repo = match.group(2)
         return f"{owner}/{repo}"
     else:
         click.echo(
@@ -91,8 +106,8 @@ def labels():
 @labels.command(name="apply")
 @click.option(
     "--repo-url",
-    required=True,
-    help="GitHub Repository URL (예: https://github.com/OWNER/REPO)"
+    default=None,
+    help="GitHub Repository URL. 지정하지 않으면 현재 디렉터리의 origin 원격을 사용합니다."
 )
 @click.option(
     "--labels-file", "--file", "-f",
@@ -103,6 +118,8 @@ def labels():
 def apply(repo_url, labels_file):
     """레이블을 일괄 생성/업데이트합니다."""
     check_gh_installed()
+    if not repo_url:
+        repo_url = get_git_repo_url()
     repo = extract_repo_name(repo_url)
     labels = load_labels(labels_file)
 
