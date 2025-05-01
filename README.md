@@ -11,13 +11,26 @@ Tiny Python CLI to automate GitHub labels and projects using the GitHub CLI.
 - Fast and minimal setup
 - Powered by GitHub CLI (`gh`)
 
-## Installation
+## Quick Start
+
+### via uv
+
+- clear all labels in repo issue 
+```
+uvx fown labels clear-all
+```
+
+- add default labels in repo issue
+```
+uvx fown labels apply
+```
+
+
+### via pip
 
 ```bash
 pip install fown
 ```
-
-## Quick Start
 
 ```bash
 # Apply labels from a file
