@@ -19,6 +19,31 @@ click = "^8.1.7"
 PyYAML = "^6.0"
 
 
+[tool.poetry.group.dev.dependencies]
+ruff = "^0.11.13"
+mypy = "^1.16.0"
+types-pyyaml = "^6.0.12.20250516"
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+# 코드 한 줄 최대 길이
+line-length = 100
+
+# 검사에서 제외할 경로
+exclude = [
+    ".git",
+    "__pycache__",
+    "tests/*",
+    "dist/*",
+    "build/*",
+    "*.egg-info/*"
+]
+
+# 린트 규칙: 무시할 규칙
+lint.ignore = ["F401", "E402", "E501"]
+
+# 린트 규칙: 선택할 규칙 그룹 (I: isort, E/F/W: PEP8, C90: 복잡성)
+lint.select = ["I", "E", "F", "W", "C90"]

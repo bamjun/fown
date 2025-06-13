@@ -1,22 +1,24 @@
-import click
-import subprocess
-import yaml
+import json
 import os
 import re
-import json
+import subprocess
+
+import click
+import yaml
+
 from fown import __version__
 
 
 def check_gh_installed():
     try:
         subprocess.run(
-            ["gh", "--version"],
-            check=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE
+            ["gh", "--version"], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
         )
     except Exception:
-        click.echo("GitHub CLI(gh)가 설치되어 있지 않습니다. 설치 후 다시 시도하세요. site: https://cli.github.com/", err=True)
+        click.echo(
+            "GitHub CLI(gh)가 설치되어 있지 않습니다. 설치 후 다시 시도하세요. site: https://cli.github.com/",
+            err=True,
+        )
         raise SystemExit(1)
 
 
@@ -43,7 +45,7 @@ def get_existing_projects(repo):
             check=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            text=True
+            text=True,
         )
         data = json.loads(result.stdout)
         return [item.get("name") for item in data]
@@ -59,24 +61,27 @@ def get_git_repo_url():
             check=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            text=True
+            text=True,
         )
         return result.stdout.strip()
     except Exception:
-        click.echo("현재 디렉터리가 git 저장소가 아니거나 origin 원격을 찾을 수 없습니다.", err=True)
+        click.echo(
+            "현재 디렉터리가 git 저장소가 아니거나 origin 원격을 찾을 수 없습니다.", err=True
+        )
         raise SystemExit(1)
 
 
 def extract_repo_name(repo_url):
-    match = re.match(r"(?:https://github\.com/|git@github\.com:)([^/]+)/([^/]+?)(?:\.git)?$", repo_url)
+    match = re.match(
+        r"(?:https://github\.com/|git@github\.com:)([^/]+)/([^/]+?)(?:\.git)?$", repo_url
+    )
     if match:
         owner = match.group(1)
         repo = match.group(2)
         return f"{owner}/{repo}"
     else:
         click.echo(
-            "올바른 GitHub repo URL 형식이 아닙니다. 예: https://github.com/OWNER/REPO",
-            err=True
+            "올바른 GitHub repo URL 형식이 아닙니다. 예: https://github.com/OWNER/REPO", err=True
         )
         raise SystemExit(1)
 
@@ -84,8 +89,19 @@ def extract_repo_name(repo_url):
 def create_label(name, color, description, repo):
     try:
         subprocess.run(
-            ["gh", "label", "create", name, "--color", color, "--description", description, "--repo", repo],
-            check=True
+            [
+                "gh",
+                "label",
+                "create",
+                name,
+                "--color",
+                color,
+                "--description",
+                description,
+                "--repo",
+                repo,
+            ],
+            check=True,
         )
         click.echo(f"[OK] Created label: {name}")
     except subprocess.CalledProcessError:
@@ -93,7 +109,7 @@ def create_label(name, color, description, repo):
 
 
 @click.group(invoke_without_command=True)
-@click.option('--version', '-v', is_flag=True, help='Show version and exit')
+@click.option("--version", "-v", is_flag=True, help="Show version and exit")
 @click.pass_context
 def main(ctx, version):
     """fown 명령어 그룹"""
@@ -115,13 +131,15 @@ def labels():
 @click.option(
     "--repo-url",
     default=None,
-    help="GitHub Repository URL. 지정하지 않으면 현재 디렉터리의 origin 원격을 사용합니다."
+    help="GitHub Repository URL. 지정하지 않으면 현재 디렉터리의 origin 원격을 사용합니다.",
 )
 @click.option(
-    "--labels-file", "--file", "-f",
+    "--labels-file",
+    "--file",
+    "-f",
     default=lambda: os.path.join(os.path.dirname(__file__), "labels.yml"),
     show_default=True,
-    help="Labels YAML 파일 경로 (alias: --file)"
+    help="Labels YAML 파일 경로 (alias: --file)",
 )
 def apply(repo_url, labels_file):
     """레이블을 일괄 생성/업데이트합니다."""
@@ -146,9 +164,9 @@ def apply(repo_url, labels_file):
 @click.option(
     "--repo-url",
     default=None,
-    help="GitHub Repository URL. 지정하지 않으면 현재 디렉터리의 origin 원격을 사용합니다."
+    help="GitHub Repository URL. 지정하지 않으면 현재 디렉터리의 origin 원격을 사용합니다.",
 )
-def clear_all(repo_url):
+def clear_all(repo_url):  # noqa: C901
     """레이포지토리의 모든 라벨을 삭제합니다."""
     check_gh_installed()
     if not repo_url:
@@ -163,19 +181,19 @@ def clear_all(repo_url):
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
-        
+
         stdout = result.stdout
         if stdout is None:
             click.echo("[ERROR] 라벨 목록을 가져올 수 없습니다.")
             return
-            
+
         # 바이너리 출력을 UTF-8로 디코딩 (errors='replace'로 잘못된 바이트 처리)
-        stdout_text = stdout.decode('utf-8', errors='replace').strip()
-        
+        stdout_text = stdout.decode("utf-8", errors="replace").strip()
+
         if not stdout_text:
             click.echo("[WARNING] 라벨을 찾을 수 없습니다.")
             return
-        
+
         try:
             labels = json.loads(stdout_text)
             click.echo(f"[INFO] {len(labels)}개의 라벨을 찾았습니다.")
@@ -186,7 +204,7 @@ def clear_all(repo_url):
     except subprocess.CalledProcessError as e:
         click.echo(f"[ERROR] 라벨 목록 가져오기 실패: {e}", err=True)
         if e.stderr:
-            error_text = e.stderr.decode('utf-8', errors='replace')
+            error_text = e.stderr.decode("utf-8", errors="replace")
             click.echo(f"[DEBUG] 오류 출력: {error_text}", err=True)
         return
 
@@ -201,14 +219,16 @@ def clear_all(repo_url):
                 ["gh", "label", "delete", name, "--repo", repo, "--yes"],
                 check=True,
                 stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE
+                stderr=subprocess.PIPE,
             )
             click.echo(f"[OK] Deleted label: {name}")
         except subprocess.CalledProcessError as e:
             click.echo(f"[ERROR] 라벨 삭제 실패 '{name}': {e}")
             if e.stderr:
-                click.echo(f"[DEBUG] 오류 출력: {e.stderr.decode('utf-8', errors='replace')}", err=True)
-    
+                click.echo(
+                    f"[DEBUG] 오류 출력: {e.stderr.decode('utf-8', errors='replace')}", err=True
+                )
+
     click.echo("[INFO] 라벨 삭제 작업 완료")
 
 
@@ -220,15 +240,15 @@ def projects():
 
 @projects.command(name="sync")
 @click.option(
-    "--repo-url",
-    required=True,
-    help="GitHub Repository URL (예: https://github.com/OWNER/REPO)"
+    "--repo-url", required=True, help="GitHub Repository URL (예: https://github.com/OWNER/REPO)"
 )
 @click.option(
-    "--config", "-c", "config_file", 
+    "--config",
+    "-c",
+    "config_file",
     default="project_config.yaml",
     show_default=True,
-    help="Projects YAML 파일 경로"
+    help="Projects YAML 파일 경로",
 )
 def sync(repo_url, config_file):
     """프로젝트 설정을 동기화합니다."""
@@ -248,12 +268,12 @@ def sync(repo_url, config_file):
             try:
                 subprocess.run(
                     ["gh", "project", "create", name, "--description", description, "--repo", repo],
-                    check=True
+                    check=True,
                 )
                 click.echo(f"[OK] Created project: {name}")
             except subprocess.CalledProcessError:
                 click.echo(f"[ERROR] Project 생성 실패: {name}")
 
 
-if __name__ == '__main__':
-    main() 
+if __name__ == "__main__":
+    main()
