@@ -139,11 +139,14 @@ def get_script_file_content(repo_name: str, owner: str, file_path: str) -> Optio
                 
                 # 임시 파일에 저장
                 file_name = os.path.basename(file_path)
-                temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(file_name)[1])
-                with open(temp_file.name, "w", encoding="utf-8") as f:
+                temp_dir = tempfile.gettempdir()
+                temp_file_name = f"fown_script_{next(tempfile._get_candidate_names())}{os.path.splitext(file_name)[1]}"
+                temp_file_path = os.path.join(temp_dir, temp_file_name)
+                
+                with open(temp_file_path, "w", encoding="utf-8") as f:
                     f.write(content)
                 
-                return temp_file.name
+                return temp_file_path
         return None
     except Exception as e:
         console.print(f"[error]스크립트 파일 내용 가져오기 실패:[/] {str(e)}")
@@ -231,15 +234,43 @@ def run_script(script_path: str):
     """
     try:
         file_ext = os.path.splitext(script_path)[1].lower()
+        script_name = os.path.basename(script_path)
+        
+        console.print(f"[info]스크립트 파일 경로: [dim]{script_path}[/][/]")
         
         if file_ext == '.py':
             # Python 스크립트 실행
-            console.print(f"[info]Python 스크립트 실행 중: [bold]{os.path.basename(script_path)}[/][/]")
+            console.print(f"[info]Python 스크립트 실행 중: [bold]{script_name}[/][/]")
             result = subprocess.run([sys.executable, script_path], capture_output=True, text=True)
         elif file_ext == '.sh':
             # Shell 스크립트 실행
-            console.print(f"[info]Shell 스크립트 실행 중: [bold]{os.path.basename(script_path)}[/][/]")
-            result = subprocess.run(['bash', script_path], capture_output=True, text=True)
+            console.print(f"[info]Shell 스크립트 실행 중: [bold]{script_name}[/][/]")
+            # Windows에서는 Git Bash 또는 WSL을 사용하여 실행
+            if os.name == 'nt':
+                # Git Bash 경로 확인
+                git_bash_paths = [
+                    "C:\\Program Files\\Git\\bin\\bash.exe",
+                    "C:\\Program Files (x86)\\Git\\bin\\bash.exe"
+                ]
+                bash_path = None
+                for path in git_bash_paths:
+                    if os.path.exists(path):
+                        bash_path = path
+                        break
+                
+                if bash_path:
+                    # Git Bash로 실행
+                    result = subprocess.run([bash_path, script_path], capture_output=True, text=True)
+                else:
+                    # Git Bash가 없으면 WSL 시도
+                    try:
+                        result = subprocess.run(["wsl", "bash", script_path], capture_output=True, text=True)
+                    except FileNotFoundError:
+                        console.print("[error]Windows에서 bash를 찾을 수 없습니다. Git Bash 또는 WSL을 설치하세요.[/]")
+                        return
+            else:
+                # Linux/Mac에서는 기본 bash 사용
+                result = subprocess.run(['bash', script_path], capture_output=True, text=True)
         else:
             console.print(f"[error]지원하지 않는 스크립트 형식: {file_ext}[/]")
             return
@@ -262,9 +293,10 @@ def run_script(script_path: str):
     finally:
         # 임시 파일 삭제
         try:
-            os.unlink(script_path)
-        except:
-            pass
+            if os.path.exists(script_path):
+                os.unlink(script_path)
+        except Exception as e:
+            console.print(f"[warning]임시 파일 삭제 실패: {str(e)}[/]")
 
 
 @script_group.command(name="use")
