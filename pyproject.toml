@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "fown"
-version = "0.1.4.4"
+version = "0.1.5"
 description = "Tiny Python CLI to automate GitHub labels and projects."
 license = "MIT"
 authors = ["bamjun <khy5116@naver.com>"]
