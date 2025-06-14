@@ -1,0 +1,47 @@
+labels:
+  - name: 🌱 Feat
+    color: 4CAF50
+    description: Implement new feature
+
+  - name: 📦 Add
+    color: 64B5F6
+    description: Add asset files
+
+  - name: 🛠️ Fix
+    color: F44336
+    description: Fix bugs
+
+  - name: 📚 Docs
+    color: FFB300
+    description: Add or update documentation
+
+  - name: 🎨 Style
+    color: E91E63
+    description: Styling work (no code logic changes)
+
+  - name: 🧹 Refactor
+    color: 9C27B0
+    description: Code refactoring (no functional changes)
+
+  - name: 🧪 Test
+    color: 00BCD4
+    description: Add or modify tests
+
+  - name: 🚀 Deploy
+    color: 3F51B5
+    description: Deployment-related changes
+
+  - name: ⚙️ Conf
+    color: 8D6E63
+    description: Build or environment configuration
+
+  - name: 🗂️ Chore
+    color: 9E9E9E
+    description: Miscellaneous tasks
+
+projects:
+  - name: Roadmap
+    description: Project roadmap and milestones
+
+  - name: Bug Tracking
+    description: Track and manage bug reports 
