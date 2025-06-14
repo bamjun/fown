@@ -16,3 +16,8 @@ poetry publish
 poetry publish --build -r testpypi
 
 ```
+
+### 로컬 테스트
+```
+PYTHONPATH=src python src\\fown\\cli\\main.py --help
+```
