@@ -7,6 +7,7 @@ from fown import __version__
 from fown.cli.archive import make_archive
 from fown.cli.label import labels_group
 from fown.cli.product import projects_group
+from fown.cli.script import script_group
 from fown.core.utils.file_io import console
 
 # rich-click 설정
@@ -42,6 +43,7 @@ def main(ctx, version):
 main.add_command(make_archive)
 main.add_command(labels_group)
 main.add_command(projects_group)
+main.add_command(script_group)
 
 
 if __name__ == "__main__":
