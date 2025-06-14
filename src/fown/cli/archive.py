@@ -67,12 +67,13 @@ def get_available_repo_name(base_name: str, existing_repos: Optional[List[Dict]]
     return repo_name
 
 
-def create_archive_repo(repo_name: str, description: str) -> bool:
+def create_archive_repo(repo_name: str, description: str, is_public: bool = False) -> bool:
     """GitHub에 아카이브 레포지토리 생성
     
     Args:
         repo_name: 생성할 레포지토리 이름
         description: 레포지토리 설명
+        is_public: 공개 레포지토리 여부 (기본값: 비공개)
         
     Returns:
         bool: 생성 성공 여부
@@ -80,11 +81,18 @@ def create_archive_repo(repo_name: str, description: str) -> bool:
     try:
         args = [
             "repo", "create", repo_name,
-            "--description", description,
-            "--public"
+            "--description", description
         ]
+        
+        # 공개 레포지토리 옵션 추가
+        if is_public:
+            args.append("--public")
+        else:
+            args.append("--private")
+            
         run_gh_command(args)
-        console.print(f"[success]✓[/] Created repository: [bold]{repo_name}[/]")
+        visibility = "public" if is_public else "private"
+        console.print(f"[success]✓[/] Created {visibility} repository: [bold]{repo_name}[/]")
         return True
     except Exception as e:
         console.print(f"[error]레포지토리 '{repo_name}' 생성 실패: {str(e)}[/]")
@@ -299,13 +307,20 @@ def check_existing_default_repo(username: str, base_name: str, existing_repos: O
     is_flag=True,
     help="기본 설정 레포지토리가 이미 있어도 강제로 생성합니다.",
 )
-def make_archive(repo_url: Optional[str], archive_name: str, default: bool, force: bool):
+@click.option(
+    "--public",
+    is_flag=True,
+    help="아카이브 레포지토리를 공개로 설정합니다. 기본값은 비공개입니다.",
+)
+def make_archive(repo_url: Optional[str], archive_name: str, default: bool, force: bool, public: bool):
     """저장소 설정을 [bold green]아카이브[/]합니다.
 
     현재 저장소의 설정을 새로운 GitHub 레포지토리에 아카이브합니다.
     
     기본 설정 레포지토리로 지정하려면 --default 옵션을 사용합니다.
     이미 기본 설정 레포지토리가 있는 경우 --force 옵션을 사용하여 강제로 생성할 수 있습니다.
+    
+    기본적으로 비공개 레포지토리로 생성되며, --public 옵션을 사용하여 공개 레포지토리로 설정할 수 있습니다.
     """
     check_gh_installed()
     
@@ -352,7 +367,8 @@ def make_archive(repo_url: Optional[str], archive_name: str, default: bool, forc
         progress.add_task("", total=None)
         success = create_archive_repo(
             repo_name, 
-            f"Archive of {repo.full_name} repository settings"
+            f"Archive of {repo.full_name} repository settings",
+            is_public=public
         )
     
     if not success:

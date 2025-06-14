@@ -3,6 +3,12 @@
 
 Tiny Python CLI to automate GitHub labels and projects using the GitHub CLI.
 
+## list of contents
+- Quick start
+- make archive repo
+- sync labels from archive
+- use script from archive
+
 ## Features
 
 - Create, update, and sync GitHub labels easily
@@ -41,6 +47,32 @@ fown projects sync --repo-url https://github.com/your-username/your-repo --confi
 
 # clear all labels
 fown labels clear-all
+```
+
+## make archive repo
+
+```
+  # default: create private repo
+  fown make-fown-archive
+
+  # create public repo
+  fown make-fown-archive --public
+```
+
+## sync labels from archive  
+
+```bash  
+  # sync labels by default labels
+  fown labels sync
+  
+  # sync labels from repo
+  fown labels sync --archive
+```
+
+## use script from archive
+
+```bash
+  fown script use
 ```
 
 ## Requirements
