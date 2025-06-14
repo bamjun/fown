@@ -15,7 +15,7 @@ from fown.core.utils.file_io import check_gh_installed, console, get_git_repo_ur
 
 # rich-click 설정
 click.rich_click.USE_RICH_MARKUP = True
-click.rich_click.USE_MARKDOWN = True
+click.rich_click.USE_MARKDOWN = False  # Markdown 대신 Rich 마크업만 사용
 click.rich_click.SHOW_ARGUMENTS = True
 click.rich_click.GROUP_ARGUMENTS_OPTIONS = True
 click.rich_click.STYLE_ERRORS_SUGGESTION = "magenta italic"
@@ -30,8 +30,7 @@ click.rich_click.STYLE_SWITCH = "bold blue"
 @click.option("--version", "-v", is_flag=True, help="Show version and exit")
 @click.pass_context
 def main(ctx, version):
-    """
-    [bold cyan]fown[/] - GitHub 레이블 및 프로젝트 관리 도구
+    """[bold cyan]fown[/] - GitHub 레이블 및 프로젝트 관리 도구
 
     레이블과 프로젝트를 쉽게 관리할 수 있는 CLI 도구입니다.
     """
