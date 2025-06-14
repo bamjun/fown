@@ -146,7 +146,9 @@ def create_fown_config_file(repo_owner: str, repo_name: str, labels: List[Label]
             
             # .fown 디렉토리 생성
             fown_dir = temp_dir / ".fown"
+            label_dir = temp_dir / "labels"
             fown_dir.mkdir(exist_ok=True)
+            label_dir.mkdir(exist_ok=True)
             
             # 설정 파일 생성
             config_data = {
@@ -154,7 +156,7 @@ def create_fown_config_file(repo_owner: str, repo_name: str, labels: List[Label]
                 "created_at": datetime.now().isoformat()
             }
             
-            with open(fown_dir / "default_labels.json", "w", encoding="utf-8") as f:
+            with open(label_dir / "default_labels.json", "w", encoding="utf-8") as f:
                 json.dump([label.to_dict() for label in labels], f, ensure_ascii=False, indent=2)
             
             with open(fown_dir / "config.yml", "w", encoding="utf-8") as f:
