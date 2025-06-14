@@ -147,14 +147,20 @@ def create_fown_config_file(repo_owner: str, repo_name: str, labels: List[Label]
             # .fown 디렉토리 생성
             fown_dir = temp_dir / ".fown"
             label_dir = temp_dir / "labels"
+            script_dir = temp_dir / "scripts"
             fown_dir.mkdir(exist_ok=True)
             label_dir.mkdir(exist_ok=True)
+            script_dir.mkdir(exist_ok=True)
             
             # 설정 파일 생성
             config_data = {
                 "default_repository": is_default,  # 기본 설정 레포지토리 여부
                 "created_at": datetime.now().isoformat()
             }
+            
+            with open(script_dir / "hello_world.sh", "w", encoding="utf-8") as f:
+                f.write(f"#!/bin/bash\n")
+                f.write(f"echo 'Hello, World!'\n")
             
             with open(label_dir / "default_labels.json", "w", encoding="utf-8") as f:
                 json.dump([label.to_dict() for label in labels], f, ensure_ascii=False, indent=2)
@@ -165,12 +171,19 @@ def create_fown_config_file(repo_owner: str, repo_name: str, labels: List[Label]
             # README.md 파일 생성
             with open(temp_dir / "README.md", "w", encoding="utf-8") as f:
                 f.write(f"# {repo_name}\n\n")
-                f.write(f"이 레포지토리는 레포지토리의 설정을 아카이브한 것입니다.\n")
+                f.write(f"이 레포지토리는 Fown에서 설정 및 관리를 위한 아카이브 레포지토리입니다.\n")
                 f.write(f"생성일: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
                 if is_default:
                     f.write("**이 레포지토리는 기본 설정 레포지토리입니다.**\n\n")
                 f.write("## 포함된 설정\n\n")
-                f.write("- 레이블 설정\n")
+                f.write("- `.fown/config.yml` 파일\n")
+                f.write("   - 아카이브 레포지토리의 설정 파일\n")
+                f.write("- `.fown/labels/` 폴더\n")
+                f.write("   - 아카이브 레포지토리의 레이블 파일\n")
+                f.write("- `.fown/scripts/` 폴더\n")
+                f.write("   - 아카이브 레포지토리의 스크립트 파일\n")
+                
+                
             
             # Git 초기화 및 커밋
             current_dir = os.getcwd()
