@@ -28,7 +28,7 @@ poetry publish --build -r testpypi
 - 실행  
 
   ```
-    PYTHONPATH=src python src\\fown\\cli.py
+    PYTHONPATH=src python src\\fown\\cli\\main.py
   ```
 
 ### 테스트서버 테스트

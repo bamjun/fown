@@ -326,3 +326,202 @@ def use_script():
     if script_path:
         # 선택한 스크립트 실행
         run_script(script_path)
+        
+
+@script_group.command(name="add")
+@click.argument("script_path", type=click.Path(exists=True))
+def add_script(script_path: str):
+    """아카이브 레포지토리에 [bold green]스크립트를 추가[/]합니다.
+
+    스크립트 파일(.sh)을 기본 아카이브 레포지토리의 scripts/ 폴더에 업로드합니다.
+    """
+    check_gh_installed()
+    
+    # 파일 확장자 확인
+    if not script_path.lower().endswith('.sh'):
+        console.print("[error]'.sh' 확장자를 가진 스크립트 파일만 업로드할 수 있습니다.[/]")
+        return
+        
+    # 기본 아카이브 레포지토리 찾기
+    found, repo_name, owner = find_default_archive_repo()
+    if not found:
+        console.print("[error]기본 아카이브 레포지토리를 찾을 수 없습니다.[/]")
+        console.print("먼저 make-fown-archive 명령어로 기본 아카이브 레포지토리를 생성하세요.")
+        return
+        
+    try:
+        # 파일 내용 읽기
+        with open(script_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+            
+        # base64로 인코딩
+        import base64
+        content_bytes = content.encode('utf-8')
+        content_base64 = base64.b64encode(content_bytes).decode('utf-8')
+        
+        # 파일 이름 추출
+        file_name = os.path.basename(script_path)
+        
+        # API 요청 데이터 준비
+        data = {
+            "message": f"Add script: {file_name}",
+            "content": content_base64,
+            "branch": "main"
+        }
+        
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console
+        ) as progress:
+            # 진행 상태 표시
+            progress.add_task(description=f"[cyan]스크립트 파일 업로드 중: {file_name}[/]", total=None)
+            
+            # GitHub API를 통해 파일 업로드
+            args = [
+                "api",
+                f"/repos/{owner}/{repo_name}/contents/scripts/{file_name}",
+                "--method", "PUT",
+                "-f", f"message=Add script: {file_name}",
+                "-f", f"content={content_base64}",
+                "-f", "branch=main"
+            ]
+            stdout, stderr = run_gh_command(args)
+            
+            if stdout and not stderr:
+                console.print(f"[success]스크립트 파일 [bold]{file_name}[/]이(가) 성공적으로 업로드되었습니다![/]")
+            else:
+                console.print(f"[error]스크립트 파일 업로드 실패:[/] {stderr or '알 수 없는 오류'}")
+                
+    except Exception as e:
+        console.print(f"[error]스크립트 파일 업로드 중 오류 발생:[/] {str(e)}")
+
+@script_group.command(name="delete")
+def delete_script():
+    """아카이브 레포지토리의 [bold red]스크립트를 삭제[/]합니다.
+
+    기본 아카이브 레포지토리의 scripts/ 폴더에서 스크립트를 선택하여 삭제합니다.
+    """
+    check_gh_installed()
+    
+    # 기본 아카이브 레포지토리 찾기
+    found, repo_name, owner = find_default_archive_repo()
+    if not found:
+        console.print("[error]기본 아카이브 레포지토리를 찾을 수 없습니다.[/]")
+        console.print("먼저 make-fown-archive 명령어로 기본 아카이브 레포지토리를 생성하세요.")
+        return
+        
+    # 스크립트 파일 목록 가져오기
+    files = list_archive_script_files(repo_name, owner)
+    if not files:
+        console.print(f"[warning][bold]{repo_name}[/] 레포지토리의 scripts/ 폴더에 스크립트 파일이 없습니다.[/]")
+        return
+        
+    # 스크립트 파일 선택 메뉴 표시
+    page_size = 5
+    current_page = 0
+    total_pages = (len(files) + page_size - 1) // page_size
+    
+    while True:
+        console.clear()
+        console.print(Panel(
+            f"[bold]{repo_name}[/] 레포지토리의 스크립트 파일 목록 (페이지 {current_page + 1}/{total_pages})",
+            border_style="red"
+        ))
+        
+        # 현재 페이지에 표시할 파일 목록
+        start_idx = current_page * page_size
+        end_idx = min(start_idx + page_size, len(files))
+        current_files = files[start_idx:end_idx]
+        
+        # 테이블 생성
+        table = Table(show_header=True)
+        table.add_column("#", style="red", justify="right")
+        table.add_column("파일명", style="green")
+        table.add_column("경로", style="dim")
+        
+        # 파일 목록 표시
+        for i, file in enumerate(current_files, 1):
+            table.add_row(str(i), file["name"], file["path"])
+        
+        console.print(table)
+        
+        # 안내 메시지
+        console.print("\n[bold]명령어:[/]")
+        console.print(" 1-5: 파일 선택")
+        if total_pages > 1:
+            console.print(" n: 다음 페이지")
+            console.print(" p: 이전 페이지")
+        console.print(" q: 종료")
+        
+        # 사용자 입력 받기
+        choice = Prompt.ask("선택").strip().lower()
+        
+        if choice == 'q':
+            return
+        elif choice == 'n' and current_page < total_pages - 1:
+            current_page += 1
+        elif choice == 'p' and current_page > 0:
+            current_page -= 1
+        elif choice.isdigit():
+            idx = int(choice)
+            if 1 <= idx <= len(current_files):
+                file_idx = start_idx + idx - 1
+                selected_file = files[file_idx]
+                
+                # 삭제 확인
+                if not Prompt.ask(
+                    f"[bold red]정말로 {selected_file['name']} 파일을 삭제하시겠습니까?[/]",
+                    choices=["y", "n"],
+                    default="n"
+                ) == "y":
+                    continue
+                
+                try:
+                    with Progress(
+                        SpinnerColumn(),
+                        TextColumn("[progress.description]{task.description}"),
+                        console=console
+                    ) as progress:
+                        # 진행 상태 표시
+                        progress.add_task(
+                            description=f"[red]스크립트 파일 삭제 중: {selected_file['name']}[/]",
+                            total=None
+                        )
+                        
+                        # GitHub API를 통해 파일 정보 가져오기
+                        args = ["api", f"/repos/{owner}/{repo_name}/contents/{selected_file['path']}"]
+                        stdout, _ = run_gh_command(args)
+                        
+                        if stdout:
+                            file_data = json.loads(stdout)
+                            sha = file_data.get("sha")
+                            
+                            if sha:
+                                # GitHub API를 통해 파일 삭제
+                                delete_args = [
+                                    "api",
+                                    f"/repos/{owner}/{repo_name}/contents/{selected_file['path']}",
+                                    "--method", "DELETE",
+                                    "-f", f"message=Delete script: {selected_file['name']}",
+                                    "-f", f"sha={sha}",
+                                    "-f", "branch=main"
+                                ]
+                                delete_stdout, delete_stderr = run_gh_command(delete_args)
+                                
+                                if delete_stdout and not delete_stderr:
+                                    console.print(f"[success]스크립트 파일 [bold]{selected_file['name']}[/]이(가) 성공적으로 삭제되었습니다![/]")
+                                    # 파일 목록 업데이트
+                                    files = list_archive_script_files(repo_name, owner)
+                                    if not files:
+                                        return
+                                    total_pages = (len(files) + page_size - 1) // page_size
+                                    current_page = min(current_page, total_pages - 1)
+                                else:
+                                    console.print(f"[error]스크립트 파일 삭제 실패:[/] {delete_stderr or '알 수 없는 오류'}")
+                except Exception as e:
+                    console.print(f"[error]스크립트 파일 삭제 중 오류 발생:[/] {str(e)}")
+            else:
+                console.print("[error]잘못된 선택입니다. 다시 시도하세요.[/]")
+                import time
+                time.sleep(1)
