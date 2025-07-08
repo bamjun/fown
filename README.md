@@ -1,104 +1,89 @@
 
 # fown
 
-Tiny Python CLI to automate GitHub labels and projects using the GitHub CLI.
+GitHub CLI를 활용하여 GitHub 레이블과 프로젝트를 자동화하는 작은 Python CLI 도구입니다.
 
-## list of contents
-- Quick start
-- make archive repo
-- sync labels from archive
-- use script from archive
+## 목차
+- [설치 방법](#설치-방법)
+- [기능](#기능)
+- [사용 방법](#사용-방법)
+  - [아카이브 레포지토리 생성](#아카이브-레포지토리-생성)
+  - [레이블 동기화](#레이블-동기화)
+  - [스크립트 관리](#스크립트-관리)
+- [요구사항](#요구사항)
+- [문서](#문서)
+- [라이선스](#라이선스)
 
-## Features
+## 설치 방법
 
-- Create, update, and sync GitHub labels easily
-- Manage GitHub projects automatically
-- Batch operations via simple config files
-- Fast and minimal setup
-- Powered by GitHub CLI (`gh`)
-
-## Quick Start
-
-### via uv
-
-- clear all labels in repo issue 
-```
+### uv를 통한 설치
+```bash
+# 모든 레이블 삭제
 uvx fown labels clear-all
-```
 
-- add default labels in repo issue
-```
+# 기본 레이블 추가
 uvx fown labels apply
 ```
 
-
-### via pip
-
+### pip을 통한 설치
 ```bash
 pip install fown
 ```
 
+## 기능
+
+- GitHub 레이블 생성, 업데이트, 동기화
+- GitHub 프로젝트 자동 관리
+- 설정 파일을 통한 일괄 작업
+- 빠르고 간단한 설정
+- GitHub CLI (`gh`) 기반 동작
+
+## 사용 방법
+
+### 아카이브 레포지토리 생성
 ```bash
-# Apply labels from a file
-fown labels apply --repo-url https://github.com/your-username/your-repo --file labels.yaml
+# 기본: private 레포지토리 생성
+fown make-fown-archive
 
-# Sync project settings
-fown projects sync --repo-url https://github.com/your-username/your-repo --config project_config.yaml
-
-# clear all labels
-fown labels clear-all
+# public 레포지토리 생성
+fown make-fown-archive --public
 ```
 
-## make archive repo
-
-```
-  # default: create private repo
-  fown make-fown-archive
-
-  # create public repo
-  fown make-fown-archive --public
-```
-
-## sync labels from archive  
-
-```bash  
-  # sync labels by default labels
-  fown labels sync
-  
-  # sync labels from repo
-  fown labels sync --archive
-```
-
-## use script from archive
-
+### 레이블 동기화
 ```bash
-  fown script use
+# 기본 레이블로 동기화
+fown labels sync
+
+# 아카이브 레포지토리에서 동기화
+fown labels sync --archive
 ```
 
-## Requirements
+### 스크립트 관리
+```bash
+# 스크립트 실행
+fown script use
 
-- Python 3.8+
-- GitHub CLI (`gh`) installed and authenticated
+# 스크립트 추가 (.sh 파일만 지원)
+fown script add <script-file.sh>
 
-Install GitHub CLI:  
+# 스크립트 삭제
+fown script delete
+```
+
+## 요구사항
+
+- Python 3.8 이상
+- GitHub CLI (`gh`) 설치 및 인증 필요
+
+GitHub CLI 설치 방법:  
 https://cli.github.com/
 
-## Usage
+## 문서
 
-You can use `fown` commands to:
+- [테스트 서버 PyPI](https://test.pypi.org/project/fown/)
+- [메인 서버 PyPI](https://pypi.org/project/fown/)
+- [GitHub](https://github.com/bamjun/fown)
 
-- Batch create/update labels
-- Manage multiple repositories at once
-- Sync project settings from templates
-
-More usage examples are coming soon!
-
-## Docs
-
-[Pypi for TestServer](https://test.pypi.org/project/fown/)  
-[Pypi for MainServer](https://pypi.org/project/fown/)  
-[Github](https://github.com/bamjun/fown)  
-
-## License
+## 라이선스
 
 MIT License
