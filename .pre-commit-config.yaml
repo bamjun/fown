@@ -1,24 +1,26 @@
 repos:
--   repo: https://github.com/astral-sh/ruff-pre-commit
+  - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.3.2
     hooks:
-    -   id: ruff
+      - id: ruff
         args:
-        - --fix
-        - --exit-non-zero-on-fix
-        - --target-version=py312
-        - --select=ALL
-        - --ignore=D,ANN,COM,CPY,TD,FIX
-    -   id: ruff-format
+          - --fix
+          - --exit-non-zero-on-fix
+          - --target-version=py312
+          - --select=ALL
+          - --ignore=D,ANN,COM,CPY,TD,FIX
+      - id: ruff-format
         args:
-        - --target-version=py312
--   repo: https://github.com/pre-commit/mirrors-mypy
+          - --target-version=py312
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.9.0
     hooks:
-    -   id: mypy
+      - id: mypy
         args:
-        - --strict
-        - --ignore-missing-imports
-        - --allow-untyped-decorators
-        - --allow-subclassing-any
-        additional_dependencies: [types-all] 
+          - --strict
+          - --ignore-missing-imports
+          - --allow-untyped-decorators
+          - --allow-subclassing-any
+        additional_dependencies:
+          - types-PyYAML
