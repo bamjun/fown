@@ -1,6 +1,7 @@
 """
 프로젝트 관련 명령어 모듈
 """
+
 import os
 from typing import Optional
 
@@ -23,15 +24,15 @@ def projects_group():
 
 @projects_group.command(name="sync")
 @click.option(
-    "--repo-url",
-    required=True,
-    help="GitHub Repository URL (예: https://github.com/OWNER/REPO)"
+    "--repo-url", required=True, help="GitHub Repository URL (예: https://github.com/OWNER/REPO)"
 )
 @click.option(
     "--config",
     "-c",
     "config_file",
-    default=lambda: os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "default_config.yml"),
+    default=lambda: os.path.join(
+        os.path.dirname(os.path.dirname(__file__)), "data", "default_config.yml"
+    ),
     show_default=True,
     help="Projects YAML 파일 경로",
 )
@@ -55,8 +56,10 @@ def sync_projects(repo_url: str, config_file: str):
     # 프로젝트 동기화
     result = ProjectService.sync_projects(projects, repo.full_name)
 
-    console.print(Panel(
-        f"[green]{result['created']}[/]개 생성, [yellow]{result['skipped']}[/]개 건너뜀",
-        title="프로젝트 동기화 완료",
-        border_style="green"
-    ))
+    console.print(
+        Panel(
+            f"[green]{result['created']}[/]개 생성, [yellow]{result['skipped']}[/]개 건너뜀",
+            title="프로젝트 동기화 완료",
+            border_style="green",
+        )
+    )

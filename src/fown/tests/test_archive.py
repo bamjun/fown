@@ -1,6 +1,7 @@
 """
 아카이브 기능 테스트
 """
+
 import os
 import shutil
 from pathlib import Path
@@ -43,10 +44,7 @@ class TestArchive(TestCase):
         mock_from_url.return_value = mock_repo
 
         # 명령 실행
-        result = self.runner.invoke(
-            make_archive,
-            ["--output-dir", str(self.test_output_dir)]
-        )
+        result = self.runner.invoke(make_archive, ["--output-dir", str(self.test_output_dir)])
 
         # 검증
         self.assertEqual(result.exit_code, 0)

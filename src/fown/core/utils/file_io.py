@@ -1,6 +1,7 @@
 """
 파일 입출력 및 유틸리티 함수 모음
 """
+
 import os
 import re
 import subprocess
@@ -13,12 +14,14 @@ from rich.panel import Panel
 from rich.theme import Theme
 
 # Rich 설정
-theme = Theme({
-    "info": "cyan",
-    "warning": "yellow",
-    "error": "bold red",
-    "success": "bold green",
-})
+theme = Theme(
+    {
+        "info": "cyan",
+        "warning": "yellow",
+        "error": "bold red",
+        "success": "bold green",
+    }
+)
 console = Console(theme=theme)
 
 
@@ -26,16 +29,15 @@ def check_gh_installed() -> None:
     """GitHub CLI가 설치되어 있는지 확인"""
     try:
         subprocess.run(
-            ["gh", "--version"],
-            check=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE
+            ["gh", "--version"], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
         )
     except Exception:
         console.print(
-            Panel("[error]GitHub CLI(gh)가 설치되어 있지 않습니다.[/]",
-                  title="오류",
-                  subtitle="설치 후 다시 시도하세요. site: https://cli.github.com/")
+            Panel(
+                "[error]GitHub CLI(gh)가 설치되어 있지 않습니다.[/]",
+                title="오류",
+                subtitle="설치 후 다시 시도하세요. site: https://cli.github.com/",
+            )
         )
         raise SystemExit(1)
 
@@ -79,8 +81,7 @@ def extract_repo_info(repo_url: str) -> Tuple[str, str]:
         return owner, repo
     else:
         console.print(
-            "[error]올바른 GitHub repo URL 형식이 아닙니다.[/]",
-            "예: https://github.com/OWNER/REPO"
+            "[error]올바른 GitHub repo URL 형식이 아닙니다.[/]", "예: https://github.com/OWNER/REPO"
         )
         raise SystemExit(1)
 

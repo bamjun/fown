@@ -1,6 +1,7 @@
 """
 GitHub CLI 서비스 로직 구현
 """
+
 import json
 from typing import Dict, List, Optional
 
@@ -22,16 +23,23 @@ class LabelService:
         """레이블 생성"""
         try:
             args = [
-                "label", "create", label.name,
-                "--color", label.color,
-                "--description", label.description,
-                "--repo", repo_name
+                "label",
+                "create",
+                label.name,
+                "--color",
+                label.color,
+                "--description",
+                label.description,
+                "--repo",
+                repo_name,
             ]
             run_gh_command(args)
             console.print(f"[success]✓[/] Created label: [bold]{label.name}[/]")
             return True
         except Exception:
-            console.print(f"[warning]![/] Label '[bold]{label.name}[/]' already exists or error occurred.")
+            console.print(
+                f"[warning]![/] Label '[bold]{label.name}[/]' already exists or error occurred."
+            )
             return False
 
     @staticmethod
@@ -39,12 +47,19 @@ class LabelService:
         """저장소의 모든 레이블 조회"""
         try:
             with Progress(
-                SpinnerColumn(),
-                TextColumn("[info]레이블 목록 가져오는 중...[/]"),
-                transient=True
+                SpinnerColumn(), TextColumn("[info]레이블 목록 가져오는 중...[/]"), transient=True
             ) as progress:
                 progress.add_task("", total=None)
-                args = ["label", "list", "--repo", repo_name, "--json", "name,color,description", "--limit", "1000"]
+                args = [
+                    "label",
+                    "list",
+                    "--repo",
+                    repo_name,
+                    "--json",
+                    "name,color,description",
+                    "--limit",
+                    "1000",
+                ]
                 stdout, _ = run_gh_command(args)
 
             if not stdout:
@@ -87,11 +102,13 @@ class LabelService:
                     success_count += 1
                 progress.update(task, advance=1)
 
-        console.print(Panel(
-            f"[success]{success_count}[/]/{len(labels)} 개의 레이블 삭제 완료",
-            title="작업 완료",
-            border_style="green"
-        ))
+        console.print(
+            Panel(
+                f"[success]{success_count}[/]/{len(labels)} 개의 레이블 삭제 완료",
+                title="작업 완료",
+                border_style="green",
+            )
+        )
         return success_count
 
 
@@ -103,9 +120,7 @@ class ProjectService:
         """저장소의 모든 프로젝트 조회"""
         try:
             with Progress(
-                SpinnerColumn(),
-                TextColumn("[info]프로젝트 목록 가져오는 중...[/]"),
-                transient=True
+                SpinnerColumn(), TextColumn("[info]프로젝트 목록 가져오는 중...[/]"), transient=True
             ) as progress:
                 progress.add_task("", total=None)
                 args = ["project", "list", "--repo", repo_name, "--json", "name,description"]
@@ -125,9 +140,13 @@ class ProjectService:
         """프로젝트 생성"""
         try:
             args = [
-                "project", "create", project.name,
-                "--description", project.description,
-                "--repo", repo_name
+                "project",
+                "create",
+                project.name,
+                "--description",
+                project.description,
+                "--repo",
+                repo_name,
             ]
             run_gh_command(args)
             console.print(f"[success]✓[/] Created project: [bold]{project.name}[/]")

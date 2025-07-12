@@ -1,6 +1,7 @@
 """
 스크립트 실행 관련 명령어 모듈
 """
+
 import json
 import os
 import subprocess
@@ -66,10 +67,12 @@ def find_default_archive_repo() -> Tuple[bool, Optional[str], Optional[str]]:
                 if config_stdout:
                     # base64로 인코딩된 내용을 디코딩
                     import base64
+
                     content_data = json.loads(config_stdout)
                     if "content" in content_data:
                         content = base64.b64decode(content_data["content"]).decode("utf-8")
                         import yaml
+
                         config = yaml.safe_load(content)
 
                         # default_repository 값 확인
@@ -104,7 +107,8 @@ def list_archive_script_files(repo_name: str, owner: str) -> List[Dict]:
             return [
                 {"name": item["name"], "path": item["path"], "type": item["type"]}
                 for item in files_data
-                if item["type"] == "file" and (item["name"].endswith(".py") or item["name"].endswith(".sh"))
+                if item["type"] == "file"
+                and (item["name"].endswith(".py") or item["name"].endswith(".sh"))
             ]
         return []
     except Exception as e:
@@ -128,6 +132,7 @@ def get_script_file_content(repo_name: str, owner: str, file_path: str) -> Optio
         if stdout:
             # base64로 인코딩된 내용을 디코딩
             import base64
+
             content_data = json.loads(stdout)
             if "content" in content_data:
                 content = base64.b64decode(content_data["content"]).decode("utf-8")
@@ -135,7 +140,9 @@ def get_script_file_content(repo_name: str, owner: str, file_path: str) -> Optio
                 # 임시 파일에 저장
                 file_name = os.path.basename(file_path)
                 temp_dir = tempfile.gettempdir()
-                temp_file_name = f"fown_script_{os.urandom(6).hex()}{os.path.splitext(file_name)[1]}"
+                temp_file_name = (
+                    f"fown_script_{os.urandom(6).hex()}{os.path.splitext(file_name)[1]}"
+                )
                 temp_file_path = os.path.join(temp_dir, temp_file_name)
 
                 with open(temp_file_path, "w", encoding="utf-8") as f:
@@ -167,10 +174,12 @@ def show_script_files_menu(files: List[Dict], repo_name: str, owner: str) -> Opt
 
     while True:
         console.clear()
-        console.print(Panel(
-            f"[bold]{repo_name}[/] 레포지토리의 스크립트 파일 목록 (페이지 {current_page + 1}/{total_pages})",
-            border_style="cyan"
-        ))
+        console.print(
+            Panel(
+                f"[bold]{repo_name}[/] 레포지토리의 스크립트 파일 목록 (페이지 {current_page + 1}/{total_pages})",
+                border_style="cyan",
+            )
+        )
 
         # 현재 페이지에 표시할 파일 목록
         start_idx = current_page * page_size
@@ -200,11 +209,11 @@ def show_script_files_menu(files: List[Dict], repo_name: str, owner: str) -> Opt
         # 사용자 입력 받기
         choice = Prompt.ask("선택").strip().lower()
 
-        if choice == 'q':
+        if choice == "q":
             return None
-        elif choice == 'n' and current_page < total_pages - 1:
+        elif choice == "n" and current_page < total_pages - 1:
             current_page += 1
-        elif choice == 'p' and current_page > 0:
+        elif choice == "p" and current_page > 0:
             current_page -= 1
         elif choice.isdigit():
             idx = int(choice)
@@ -216,6 +225,7 @@ def show_script_files_menu(files: List[Dict], repo_name: str, owner: str) -> Opt
             else:
                 console.print("[error]잘못된 선택입니다. 다시 시도하세요.[/]")
                 import time
+
                 time.sleep(1)
 
 
@@ -229,10 +239,7 @@ def run_python_script(script_path: str) -> subprocess.CompletedProcess:
         subprocess.CompletedProcess: 실행 결과
     """
     return subprocess.run(
-        [sys.executable, script_path],
-        capture_output=True,
-        text=True,
-        encoding='utf-8'
+        [sys.executable, script_path], capture_output=True, text=True, encoding="utf-8"
     )
 
 
@@ -244,7 +251,7 @@ def find_bash_path() -> Optional[str]:
     """
     git_bash_paths = [
         "C:\\Program Files\\Git\\bin\\bash.exe",
-        "C:\\Program Files (x86)\\Git\\bin\\bash.exe"
+        "C:\\Program Files (x86)\\Git\\bin\\bash.exe",
     ]
     for path in git_bash_paths:
         if os.path.exists(path):
@@ -261,36 +268,29 @@ def run_shell_script(script_path: str) -> Optional[subprocess.CompletedProcess]:
     Returns:
         Optional[subprocess.CompletedProcess]: 실행 결과 또는 None
     """
-    if os.name == 'nt':
+    if os.name == "nt":
         # Windows 환경
         bash_path = find_bash_path()
         if bash_path:
             # Git Bash로 실행
             return subprocess.run(
-                [bash_path, script_path],
-                capture_output=True,
-                text=True,
-                encoding='utf-8'
+                [bash_path, script_path], capture_output=True, text=True, encoding="utf-8"
             )
         else:
             # Git Bash가 없으면 WSL 시도
             try:
                 return subprocess.run(
-                    ["wsl", "bash", script_path],
-                    capture_output=True,
-                    text=True,
-                    encoding='utf-8'
+                    ["wsl", "bash", script_path], capture_output=True, text=True, encoding="utf-8"
                 )
             except FileNotFoundError:
-                console.print("[error]Windows에서 bash를 찾을 수 없습니다. Git Bash 또는 WSL을 설치하세요.[/]")
+                console.print(
+                    "[error]Windows에서 bash를 찾을 수 없습니다. Git Bash 또는 WSL을 설치하세요.[/]"
+                )
                 return None
     else:
         # Linux/Mac에서는 기본 bash 사용
         return subprocess.run(
-            ['bash', script_path],
-            capture_output=True,
-            text=True,
-            encoding='utf-8'
+            ["bash", script_path], capture_output=True, text=True, encoding="utf-8"
         )
 
 
@@ -302,24 +302,24 @@ def display_script_result(result: subprocess.CompletedProcess) -> None:
     """
     if result.returncode == 0:
         if result.stdout:  # stdout이 None이 아닐 때만 출력
-            console.print(Panel(
-                result.stdout,
-                title="스크립트 실행 성공",
-                border_style="green"
-            ))
+            console.print(Panel(result.stdout, title="스크립트 실행 성공", border_style="green"))
         else:
-            console.print(Panel(
-                "스크립트가 성공적으로 실행되었습니다.",
-                title="스크립트 실행 성공",
-                border_style="green"
-            ))
+            console.print(
+                Panel(
+                    "스크립트가 성공적으로 실행되었습니다.",
+                    title="스크립트 실행 성공",
+                    border_style="green",
+                )
+            )
     else:
         error_message = result.stderr if result.stderr else "알 수 없는 오류"
-        console.print(Panel(
-            f"[error]에러 코드: {result.returncode}[/]\n\n{error_message}",
-            title="스크립트 실행 실패",
-            border_style="red"
-        ))
+        console.print(
+            Panel(
+                f"[error]에러 코드: {result.returncode}[/]\n\n{error_message}",
+                title="스크립트 실행 실패",
+                border_style="red",
+            )
+        )
 
 
 def run_script(script_path: str) -> None:
@@ -335,11 +335,11 @@ def run_script(script_path: str) -> None:
         console.print(f"[info]스크립트 파일 경로: [dim]{script_path}[/][/]")
 
         result = None
-        if file_ext == '.py':
+        if file_ext == ".py":
             # Python 스크립트 실행
             console.print(f"[info]Python 스크립트 실행 중: [bold]{script_name}[/][/]")
             result = run_python_script(script_path)
-        elif file_ext == '.sh':
+        elif file_ext == ".sh":
             # Shell 스크립트 실행
             console.print(f"[info]Shell 스크립트 실행 중: [bold]{script_name}[/][/]")
             result = run_shell_script(script_path)
@@ -379,7 +379,9 @@ def use_script():
     # 스크립트 파일 목록 가져오기
     files = list_archive_script_files(repo_name, owner)
     if not files:
-        console.print(f"[warning][bold]{repo_name}[/] 레포지토리의 scripts/ 폴더에 스크립트 파일이 없습니다.[/]")
+        console.print(
+            f"[warning][bold]{repo_name}[/] 레포지토리의 scripts/ 폴더에 스크립트 파일이 없습니다.[/]"
+        )
         console.print("scripts/ 폴더에 .py 또는 .sh 파일을 추가하세요.")
         return
 
@@ -400,7 +402,7 @@ def add_script(script_path: str):
     check_gh_installed()
 
     # 파일 확장자 확인
-    if not script_path.lower().endswith('.sh'):
+    if not script_path.lower().endswith(".sh"):
         console.print("[error]'.sh' 확장자를 가진 스크립트 파일만 업로드할 수 있습니다.[/]")
         return
 
@@ -413,38 +415,45 @@ def add_script(script_path: str):
 
     try:
         # 파일 내용 읽기
-        with open(script_path, 'r', encoding='utf-8') as f:
+        with open(script_path, "r", encoding="utf-8") as f:
             content = f.read()
 
         # base64로 인코딩
         import base64
-        content_bytes = content.encode('utf-8')
-        content_base64 = base64.b64encode(content_bytes).decode('utf-8')
+
+        content_bytes = content.encode("utf-8")
+        content_base64 = base64.b64encode(content_bytes).decode("utf-8")
 
         # 파일 이름 추출
         file_name = os.path.basename(script_path)
 
         with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            console=console
+            SpinnerColumn(), TextColumn("[progress.description]{task.description}"), console=console
         ) as progress:
             # 진행 상태 표시
-            progress.add_task(description=f"[cyan]스크립트 파일 업로드 중: {file_name}[/]", total=None)
+            progress.add_task(
+                description=f"[cyan]스크립트 파일 업로드 중: {file_name}[/]", total=None
+            )
 
             # GitHub API를 통해 파일 업로드
             args = [
                 "api",
                 f"/repos/{owner}/{repo_name}/contents/scripts/{file_name}",
-                "--method", "PUT",
-                "-f", f"message=Add script: {file_name}",
-                "-f", f"content={content_base64}",
-                "-f", "branch=main"
+                "--method",
+                "PUT",
+                "-f",
+                f"message=Add script: {file_name}",
+                "-f",
+                f"content={content_base64}",
+                "-f",
+                "branch=main",
             ]
             stdout, stderr = run_gh_command(args)
 
             if stdout and not stderr:
-                console.print(f"[success]스크립트 파일 [bold]{file_name}[/]이(가) 성공적으로 업로드되었습니다![/]")
+                console.print(
+                    f"[success]스크립트 파일 [bold]{file_name}[/]이(가) 성공적으로 업로드되었습니다![/]"
+                )
             else:
                 console.print(f"[error]스크립트 파일 업로드 실패:[/] {stderr or '알 수 없는 오류'}")
 
@@ -465,14 +474,11 @@ def delete_script_file(owner: str, repo_name: str, selected_file: Dict[str, str]
     """
     try:
         with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            console=console
+            SpinnerColumn(), TextColumn("[progress.description]{task.description}"), console=console
         ) as progress:
             # 진행 상태 표시
             progress.add_task(
-                description=f"[red]스크립트 파일 삭제 중: {selected_file['name']}[/]",
-                total=None
+                description=f"[red]스크립트 파일 삭제 중: {selected_file['name']}[/]", total=None
             )
 
             # GitHub API를 통해 파일 정보 가져오기
@@ -488,18 +494,26 @@ def delete_script_file(owner: str, repo_name: str, selected_file: Dict[str, str]
                     delete_args = [
                         "api",
                         f"/repos/{owner}/{repo_name}/contents/{selected_file['path']}",
-                        "--method", "DELETE",
-                        "-f", f"message=Delete script: {selected_file['name']}",
-                        "-f", f"sha={sha}",
-                        "-f", "branch=main"
+                        "--method",
+                        "DELETE",
+                        "-f",
+                        f"message=Delete script: {selected_file['name']}",
+                        "-f",
+                        f"sha={sha}",
+                        "-f",
+                        "branch=main",
                     ]
                     delete_stdout, delete_stderr = run_gh_command(delete_args)
 
                     if delete_stdout and not delete_stderr:
-                        console.print(f"[success]스크립트 파일 [bold]{selected_file['name']}[/]이(가) 성공적으로 삭제되었습니다![/]")
+                        console.print(
+                            f"[success]스크립트 파일 [bold]{selected_file['name']}[/]이(가) 성공적으로 삭제되었습니다![/]"
+                        )
                         return True
                     else:
-                        console.print(f"[error]스크립트 파일 삭제 실패:[/] {delete_stderr or '알 수 없는 오류'}")
+                        console.print(
+                            f"[error]스크립트 파일 삭제 실패:[/] {delete_stderr or '알 수 없는 오류'}"
+                        )
 
     except Exception as e:
         console.print(f"[error]스크립트 파일 삭제 중 오류 발생:[/] {str(e)}")
@@ -507,7 +521,9 @@ def delete_script_file(owner: str, repo_name: str, selected_file: Dict[str, str]
     return False
 
 
-def handle_delete_selection(current_files: List[Dict], start_idx: int, choice: str, owner: str, repo_name: str) -> Tuple[bool, Optional[List[Dict]]]:
+def handle_delete_selection(
+    current_files: List[Dict], start_idx: int, choice: str, owner: str, repo_name: str
+) -> Tuple[bool, Optional[List[Dict]]]:
     """스크립트 삭제 선택을 처리합니다.
 
     Args:
@@ -529,11 +545,14 @@ def handle_delete_selection(current_files: List[Dict], start_idx: int, choice: s
         selected_file = current_files[file_idx]
 
         # 삭제 확인
-        if not Prompt.ask(
-            f"[bold red]정말로 {selected_file['name']} 파일을 삭제하시겠습니까?[/]",
-            choices=["y", "n"],
-            default="n"
-        ) == "y":
+        if (
+            not Prompt.ask(
+                f"[bold red]정말로 {selected_file['name']} 파일을 삭제하시겠습니까?[/]",
+                choices=["y", "n"],
+                default="n",
+            )
+            == "y"
+        ):
             return False, None
 
         if delete_script_file(owner, repo_name, selected_file):
@@ -544,12 +563,15 @@ def handle_delete_selection(current_files: List[Dict], start_idx: int, choice: s
     else:
         console.print("[error]잘못된 선택입니다. 다시 시도하세요.[/]")
         import time
+
         time.sleep(1)
 
     return False, None
 
 
-def display_delete_menu(current_files: List[Dict], current_page: int, total_pages: int, repo_name: str) -> None:
+def display_delete_menu(
+    current_files: List[Dict], current_page: int, total_pages: int, repo_name: str
+) -> None:
     """스크립트 삭제 메뉴를 표시합니다.
 
     Args:
@@ -559,10 +581,12 @@ def display_delete_menu(current_files: List[Dict], current_page: int, total_page
         repo_name: 레포지토리 이름
     """
     console.clear()
-    console.print(Panel(
-        f"[bold]{repo_name}[/] 레포지토리의 스크립트 파일 목록 (페이지 {current_page + 1}/{total_pages})",
-        border_style="red"
-    ))
+    console.print(
+        Panel(
+            f"[bold]{repo_name}[/] 레포지토리의 스크립트 파일 목록 (페이지 {current_page + 1}/{total_pages})",
+            border_style="red",
+        )
+    )
 
     # 테이블 생성
     table = Table(show_header=True)
@@ -595,15 +619,21 @@ def delete_script() -> None:
 
     # 기본 아카이브 레포지토리 찾기
     found, repo_name, owner = find_default_archive_repo()
-    if not found:
+    if not found or repo_name is None or owner is None:
         console.print("[error]기본 아카이브 레포지토리를 찾을 수 없습니다.[/]")
         console.print("먼저 make-fown-archive 명령어로 기본 아카이브 레포지토리를 생성하세요.")
         return
 
     # 스크립트 파일 목록 가져오기
-    files = list_archive_script_files(repo_name, owner)
-    if not files:
-        console.print(f"[warning][bold]{repo_name}[/] 레포지토리의 scripts/ 폴더에 스크립트 파일이 없습니다.[/]")
+    try:
+        files = list_archive_script_files(repo_name, owner)
+        if not files:
+            console.print(
+                f"[warning][bold]{repo_name}[/] 레포지토리의 scripts/ 폴더에 스크립트 파일이 없습니다.[/]"
+            )
+            return
+    except ValueError as e:
+        console.print(f"[error]{str(e)}[/]")
         return
 
     # 페이지네이션 설정
@@ -623,14 +653,16 @@ def delete_script() -> None:
         # 사용자 입력 처리
         choice = Prompt.ask("선택").strip().lower()
 
-        if choice == 'q':
+        if choice == "q":
             return
-        elif choice == 'n' and current_page < total_pages - 1:
+        elif choice == "n" and current_page < total_pages - 1:
             current_page += 1
-        elif choice == 'p' and current_page > 0:
+        elif choice == "p" and current_page > 0:
             current_page -= 1
         else:
-            success, updated_files = handle_delete_selection(current_files, start_idx, choice, owner, repo_name)
+            success, updated_files = handle_delete_selection(
+                current_files, start_idx, choice, owner, repo_name
+            )
             if success:
                 if not updated_files:
                     return
@@ -660,6 +692,7 @@ def download_script_file(owner: str, repo_name: str, selected_file: Dict[str, st
 
         # base64로 인코딩된 내용을 디코딩
         import base64
+
         content_data = json.loads(stdout)
         if "content" not in content_data:
             return False
@@ -672,11 +705,14 @@ def download_script_file(owner: str, repo_name: str, selected_file: Dict[str, st
 
         # 파일이 이미 존재하는 경우 확인
         if os.path.exists(target_path):
-            if not Prompt.ask(
-                f"[bold yellow]파일 '{file_name}'이(가) 이미 존재합니다. 덮어쓰시겠습니까?[/]",
-                choices=["y", "n"],
-                default="n"
-            ) == "y":
+            if (
+                not Prompt.ask(
+                    f"[bold yellow]파일 '{file_name}'이(가) 이미 존재합니다. 덮어쓰시겠습니까?[/]",
+                    choices=["y", "n"],
+                    default="n",
+                )
+                == "y"
+            ):
                 console.print("[info]다운로드가 취소되었습니다.[/]")
                 return False
 
@@ -691,7 +727,9 @@ def download_script_file(owner: str, repo_name: str, selected_file: Dict[str, st
             except Exception as e:
                 console.print(f"[warning]실행 권한 부여 실패: {str(e)}[/]")
 
-        console.print(f"[success]스크립트 파일 [bold]{file_name}[/]이(가) 성공적으로 다운로드되었습니다![/]")
+        console.print(
+            f"[success]스크립트 파일 [bold]{file_name}[/]이(가) 성공적으로 다운로드되었습니다![/]"
+        )
         console.print(f"[info]저장 위치: [dim]{target_path}[/][/]")
         return True
 
@@ -700,7 +738,9 @@ def download_script_file(owner: str, repo_name: str, selected_file: Dict[str, st
         return False
 
 
-def handle_script_selection(current_files: List[Dict], start_idx: int, choice: str, owner: str, repo_name: str) -> bool:
+def handle_script_selection(
+    current_files: List[Dict], start_idx: int, choice: str, owner: str, repo_name: str
+) -> bool:
     """스크립트 선택을 처리합니다.
 
     Args:
@@ -725,12 +765,15 @@ def handle_script_selection(current_files: List[Dict], start_idx: int, choice: s
     else:
         console.print("[error]잘못된 선택입니다. 다시 시도하세요.[/]")
         import time
+
         time.sleep(1)
 
     return False
 
 
-def display_script_menu(current_files: List[Dict], current_page: int, total_pages: int, repo_name: str) -> None:
+def display_script_menu(
+    current_files: List[Dict], current_page: int, total_pages: int, repo_name: str
+) -> None:
     """스크립트 메뉴를 표시합니다.
 
     Args:
@@ -740,10 +783,12 @@ def display_script_menu(current_files: List[Dict], current_page: int, total_page
         repo_name: 레포지토리 이름
     """
     console.clear()
-    console.print(Panel(
-        f"[bold]{repo_name}[/] 레포지토리의 스크립트 파일 목록 (페이지 {current_page + 1}/{total_pages})",
-        border_style="cyan"
-    ))
+    console.print(
+        Panel(
+            f"[bold]{repo_name}[/] 레포지토리의 스크립트 파일 목록 (페이지 {current_page + 1}/{total_pages})",
+            border_style="cyan",
+        )
+    )
 
     # 테이블 생성
     table = Table(show_header=True)
@@ -776,7 +821,7 @@ def load_script() -> None:
 
     # 기본 아카이브 레포지토리 찾기
     found, repo_name, owner = find_default_archive_repo()
-    if not found:
+    if not found or repo_name is None or owner is None:
         console.print("[error]기본 아카이브 레포지토리를 찾을 수 없습니다.[/]")
         console.print("먼저 make-fown-archive 명령어로 기본 아카이브 레포지토리를 생성하세요.")
         return
@@ -784,7 +829,9 @@ def load_script() -> None:
     # 스크립트 파일 목록 가져오기
     files = list_archive_script_files(repo_name, owner)
     if not files:
-        console.print(f"[warning][bold]{repo_name}[/] 레포지토리의 scripts/ 폴더에 스크립트 파일이 없습니다.[/]")
+        console.print(
+            f"[warning][bold]{repo_name}[/] 레포지토리의 scripts/ 폴더에 스크립트 파일이 없습니다.[/]"
+        )
         console.print("scripts/ 폴더에 .py 또는 .sh 파일을 추가하세요.")
         return
 
@@ -805,11 +852,11 @@ def load_script() -> None:
         # 사용자 입력 처리
         choice = Prompt.ask("선택").strip().lower()
 
-        if choice == 'q':
+        if choice == "q":
             return
-        elif choice == 'n' and current_page < total_pages - 1:
+        elif choice == "n" and current_page < total_pages - 1:
             current_page += 1
-        elif choice == 'p' and current_page > 0:
+        elif choice == "p" and current_page > 0:
             current_page -= 1
         elif handle_script_selection(current_files, start_idx, choice, owner, repo_name):
             return

@@ -1,6 +1,7 @@
 """
 아카이브 관련 명령어 모듈
 """
+
 import json
 import os
 import shutil
@@ -30,7 +31,14 @@ def get_user_repository_by_name(repo_name: str) -> Optional[Dict]:
     """
     try:
         # gh search repos 명령어로 검색
-        args = ["search", "repos", repo_name, f"--owner={get_github_username()}", "--json", "name,description,visibility,updatedAt"]
+        args = [
+            "search",
+            "repos",
+            repo_name,
+            f"--owner={get_github_username()}",
+            "--json",
+            "name,description,visibility,updatedAt",
+        ]
         stdout, _ = run_gh_command(args)
 
         if not stdout:
@@ -38,19 +46,18 @@ def get_user_repository_by_name(repo_name: str) -> Optional[Dict]:
 
         # 검색 결과 파싱
         import json
+
         repos = json.loads(stdout)
 
         # 검색된 레포지토리 수 반환
         if not repos:
             return None
 
-        return {
-            "total_count": len(repos),
-            "items": repos
-        }
+        return {"total_count": len(repos), "items": repos}
 
     except Exception as e:
         from fown.core.utils.file_io import console
+
         console.print(f"[error]레포지토리 검색 실패:[/] {str(e)}")
         return None
 
@@ -96,6 +103,7 @@ def get_available_repo_name(base_name: str, existing_repos: Optional[List[Dict]]
 
     # 모든 이름이 사용 중인 경우 랜덤 숫자 추가
     import random
+
     repo_name = f"{base_name}{random.randint(10, 99)}"
     console.print(f"[info]사용 가능한 레포지토리 이름: [bold]{repo_name}[/][/]")
     return repo_name
@@ -111,10 +119,7 @@ def create_archive_repo(repo_name: str, description: str, is_public: bool = Fals
         bool: 생성 성공 여부
     """
     try:
-        args = [
-            "repo", "create", repo_name,
-            "--description", description
-        ]
+        args = ["repo", "create", repo_name, "--description", description]
 
         # 공개 레포지토리 옵션 추가
         if is_public:
@@ -139,7 +144,7 @@ def get_github_username() -> Optional[str]:
             return None
 
         # 출력에서 계정 이름 찾기
-        for line in stdout.split('\n'):
+        for line in stdout.split("\n"):
             if "github.com account" in line:
                 # "✓ Logged in to github.com account bamjun (keyring)" 형식에서 추출
                 parts = line.split("account")
@@ -165,7 +170,9 @@ def get_github_user_info() -> Optional[Dict]:
         return None
 
 
-def create_fown_config_file(repo_owner: str, repo_name: str, labels: List[Label], is_default: bool = True) -> bool:
+def create_fown_config_file(
+    repo_owner: str, repo_name: str, labels: List[Label], is_default: bool = True
+) -> bool:
     """아카이브 레포지토리에 .fown/config.yml 파일 생성
     Args:
         repo_owner: 레포지토리 소유자 이름
@@ -194,7 +201,7 @@ def create_fown_config_file(repo_owner: str, repo_name: str, labels: List[Label]
             # 설정 파일 생성
             config_data = {
                 "default_repository": is_default,  # 기본 설정 레포지토리 여부
-                "created_at": datetime.now().isoformat()
+                "created_at": datetime.now().isoformat(),
             }
 
             with open(script_dir / "hello_world.sh", "w", encoding="utf-8") as f:
@@ -222,8 +229,6 @@ def create_fown_config_file(repo_owner: str, repo_name: str, labels: List[Label]
                 f.write("- `.fown/scripts/` 폴더\n")
                 f.write("   - 아카이브 레포지토리의 스크립트 파일\n")
 
-
-
             # Git 초기화 및 커밋
             current_dir = os.getcwd()
             os.chdir(temp_dir)
@@ -236,7 +241,7 @@ def create_fown_config_file(repo_owner: str, repo_name: str, labels: List[Label]
                 f'git config --local user.name "{user_name}"',
                 'git commit -m "Initial commit with archived settings"',
                 f"git remote add origin https://github.com/{repo_owner}/{repo_name}.git",
-                "git push -u origin main"
+                "git push -u origin main",
             ]
 
             for cmd in commands:
@@ -253,7 +258,9 @@ def create_fown_config_file(repo_owner: str, repo_name: str, labels: List[Label]
         return False
 
 
-def check_existing_default_repo(username: str, base_name: str, existing_repos: Optional[List[Dict]] = None) -> Tuple[bool, Optional[str]]:
+def check_existing_default_repo(
+    username: str, base_name: str, existing_repos: Optional[List[Dict]] = None
+) -> Tuple[bool, Optional[str]]:
     """사용자의 레포지토리 중 기본 아카이브 레포지토리가 있는지 확인
     fown-archive부터 fown-archive9까지의 레포지토리를 검사하여
     .fown/config.yml 파일에 default_repository: True가 설정된 레포지토리가 있는지 확인합니다.
@@ -291,6 +298,7 @@ def check_existing_default_repo(username: str, base_name: str, existing_repos: O
                 if config_stdout:
                     # base64로 인코딩된 내용을 디코딩
                     import base64
+
                     content_data = json.loads(config_stdout)
                     if "content" in content_data:
                         content = base64.b64decode(content_data["content"]).decode("utf-8")
@@ -340,7 +348,9 @@ def check_existing_default_repo(username: str, base_name: str, existing_repos: O
     is_flag=True,
     help="아카이브 레포지토리를 공개로 설정합니다. 기본값은 비공개입니다.",
 )
-def make_archive(repo_url: Optional[str], archive_name: str, default: bool, force: bool, public: bool):
+def make_archive(
+    repo_url: Optional[str], archive_name: str, default: bool, force: bool, public: bool
+):
     """저장소 설정을 [bold green]아카이브[/]합니다.
     현재 저장소의 설정을 새로운 GitHub 레포지토리에 아카이브합니다.
     기본 설정 레포지토리로 지정하려면 --default 옵션을 사용합니다.
@@ -369,15 +379,19 @@ def make_archive(repo_url: Optional[str], archive_name: str, default: bool, forc
     # 기본 레포지토리 체크
     # --default 옵션이 지정되고 --force 옵션이 지정되지 않은 경우에만 체크
     if default and not force:
-        has_default, default_repo = check_existing_default_repo(current_user, archive_name, user_repos)
+        has_default, default_repo = check_existing_default_repo(
+            current_user, archive_name, user_repos
+        )
 
         if has_default:
-            console.print(Panel(
-                f"이미 기본 설정 레포지토리가 존재합니다: [bold]https://github.com/{current_user}/{default_repo}[/]\n"
-                "기존 레포지토리를 계속 사용하거나 --force 옵션을 사용하여 새로 생성하세요.",
-                title="경고",
-                border_style="yellow"
-            ))
+            console.print(
+                Panel(
+                    f"이미 기본 설정 레포지토리가 존재합니다: [bold]https://github.com/{current_user}/{default_repo}[/]\n"
+                    "기존 레포지토리를 계속 사용하거나 --force 옵션을 사용하여 새로 생성하세요.",
+                    title="경고",
+                    border_style="yellow",
+                )
+            )
             return
 
     # 사용 가능한 레포지토리 이름 찾기
@@ -385,23 +399,21 @@ def make_archive(repo_url: Optional[str], archive_name: str, default: bool, forc
 
     # 아카이브 레포지토리 생성
     with Progress(
-        SpinnerColumn(),
-        TextColumn("[info]아카이브 레포지토리 생성 중...[/]"),
-        transient=True
+        SpinnerColumn(), TextColumn("[info]아카이브 레포지토리 생성 중...[/]"), transient=True
     ) as progress:
         progress.add_task("", total=None)
         success = create_archive_repo(
-            repo_name,
-            f"Archive of {repo.full_name} repository settings",
-            is_public=public
+            repo_name, f"Archive of {repo.full_name} repository settings", is_public=public
         )
 
     if not success:
-        console.print(Panel(
-            "아카이브 레포지토리를 생성할 수 없습니다. 다른 이름을 시도해보세요.",
-            title="오류",
-            border_style="red"
-        ))
+        console.print(
+            Panel(
+                "아카이브 레포지토리를 생성할 수 없습니다. 다른 이름을 시도해보세요.",
+                title="오류",
+                border_style="red",
+            )
+        )
         return
 
     # 레이블 정보 가져오기
@@ -410,24 +422,26 @@ def make_archive(repo_url: Optional[str], archive_name: str, default: bool, forc
 
     # 설정 파일 생성 및 푸시
     with Progress(
-        SpinnerColumn(),
-        TextColumn("[info]설정 파일 생성 및 푸시 중...[/]"),
-        transient=True
+        SpinnerColumn(), TextColumn("[info]설정 파일 생성 및 푸시 중...[/]"), transient=True
     ) as progress:
         progress.add_task("", total=None)
         success = create_fown_config_file(current_user, repo_name, labels, is_default=default)
 
     if not success:
-        console.print(Panel(
-            "설정 파일을 생성하는 데 실패했습니다.",
-            title="오류",
-            border_style="red"
-        ))
+        console.print(
+            Panel("설정 파일을 생성하는 데 실패했습니다.", title="오류", border_style="red")
+        )
         return
 
-    console.print(Panel(
-        f"아카이브가 생성되었습니다: [bold]https://github.com/{current_user}/{repo_name}[/]" +
-        ("\n이 레포지토리는 [bold]기본 설정 레포지토리[/]로 지정되었습니다." if default else ""),
-        title="아카이브 완료",
-        border_style="green"
-    ))
+    console.print(
+        Panel(
+            f"아카이브가 생성되었습니다: [bold]https://github.com/{current_user}/{repo_name}[/]"
+            + (
+                "\n이 레포지토리는 [bold]기본 설정 레포지토리[/]로 지정되었습니다."
+                if default
+                else ""
+            ),
+            title="아카이브 완료",
+            border_style="green",
+        )
+    )

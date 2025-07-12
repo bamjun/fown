@@ -1,6 +1,7 @@
 """
 레이블 관련 명령어 모듈
 """
+
 import json
 import os
 import sys
@@ -21,6 +22,7 @@ from fown.core.utils.file_io import check_gh_installed, console, get_git_repo_ur
 
 # 이 모듈은 향후 확장을 위해 준비되었습니다.
 # 현재는 main.py에 구현된 레이블 명령어를 이 모듈로 이동할 수 있습니다.
+
 
 @click.group(name="labels")
 def labels_group():
@@ -63,10 +65,12 @@ def get_config_from_repo(username: str, repo_name: str) -> Optional[Dict]:
         if config_stdout:
             # base64로 인코딩된 내용을 디코딩
             import base64
+
             content_data = json.loads(config_stdout)
             if "content" in content_data:
                 content = base64.b64decode(content_data["content"]).decode("utf-8")
                 import yaml
+
                 return yaml.safe_load(content)
     except Exception:
         pass
@@ -88,7 +92,9 @@ def find_default_repo_from_list(username: str, repos: Dict) -> Tuple[bool, Optio
         return False, None
 
     if repos["total_count"] == 1:
-        console.print(f"[info]레포지토리 [bold]{repos['items'][0]['name']}[/] 발견, 설정 확인 중...[/]")
+        console.print(
+            f"[info]레포지토리 [bold]{repos['items'][0]['name']}[/] 발견, 설정 확인 중...[/]"
+        )
         return True, repos["items"][0]["name"]
 
     if repos["total_count"] > 1:
@@ -154,6 +160,7 @@ def get_archive_labels_file(repo_name: str, owner: str) -> Optional[str]:
             if stdout:
                 # base64로 인코딩된 내용을 디코딩
                 import base64
+
                 content_data = json.loads(stdout)
                 if "content" in content_data:
                     content = base64.b64decode(content_data["content"]).decode("utf-8")
@@ -161,6 +168,7 @@ def get_archive_labels_file(repo_name: str, owner: str) -> Optional[str]:
 
                     # 임시 파일에 저장
                     import tempfile
+
                     temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".json")
                     with open(temp_file.name, "w", encoding="utf-8") as f:
                         json.dump(labels_data, f, ensure_ascii=False, indent=2)
@@ -216,6 +224,7 @@ def get_label_file_content(repo_name: str, owner: str, file_path: str) -> Option
         if stdout:
             # base64로 인코딩된 내용을 디코딩
             import base64
+
             content_data = json.loads(stdout)
             if "content" in content_data:
                 content = base64.b64decode(content_data["content"]).decode("utf-8")
@@ -223,6 +232,7 @@ def get_label_file_content(repo_name: str, owner: str, file_path: str) -> Option
 
                 # 임시 파일에 저장
                 import tempfile
+
                 temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".json")
                 with open(temp_file.name, "w", encoding="utf-8") as f:
                     json.dump(labels_data, f, ensure_ascii=False, indent=2)
@@ -253,10 +263,12 @@ def show_label_files_menu(files: List[Dict], repo_name: str, owner: str) -> Opti
 
     while True:
         console.clear()
-        console.print(Panel(
-            f"[bold]{repo_name}[/] 레포지토리의 레이블 파일 목록 (페이지 {current_page + 1}/{total_pages})",
-            border_style="cyan"
-        ))
+        console.print(
+            Panel(
+                f"[bold]{repo_name}[/] 레포지토리의 레이블 파일 목록 (페이지 {current_page + 1}/{total_pages})",
+                border_style="cyan",
+            )
+        )
 
         # 현재 페이지에 표시할 파일 목록
         start_idx = current_page * page_size
@@ -285,11 +297,11 @@ def show_label_files_menu(files: List[Dict], repo_name: str, owner: str) -> Opti
         # 사용자 입력 받기
         choice = Prompt.ask("선택").strip().lower()
 
-        if choice == 'q':
+        if choice == "q":
             return None
-        elif choice == 'n' and current_page < total_pages - 1:
+        elif choice == "n" and current_page < total_pages - 1:
             current_page += 1
-        elif choice == 'p' and current_page > 0:
+        elif choice == "p" and current_page > 0:
             current_page -= 1
         elif choice.isdigit():
             idx = int(choice)
@@ -301,6 +313,7 @@ def show_label_files_menu(files: List[Dict], repo_name: str, owner: str) -> Opti
             else:
                 console.print("[error]잘못된 선택입니다. 다시 시도하세요.[/]")
                 import time
+
                 time.sleep(1)
 
 
@@ -320,7 +333,9 @@ def load_labels_from_json(file_path: str) -> List[Label]:
         return []
 
 
-def load_labels_from_archive(repo_name: str, owner: str, show_menu: bool = False) -> Tuple[List[Label], Optional[str]]:
+def load_labels_from_archive(
+    repo_name: str, owner: str, show_menu: bool = False
+) -> Tuple[List[Label], Optional[str]]:
     """아카이브 레포지토리에서 레이블을 로드합니다.
 
     Args:
@@ -360,7 +375,7 @@ def load_labels_from_file(labels_file: str) -> List[Label]:
         List[Label]: 레이블 목록
     """
     file_ext = Path(labels_file).suffix.lower()
-    if file_ext == '.json':
+    if file_ext == ".json":
         return load_labels_from_json(labels_file)
     return Config.load_labels(labels_file)
 
@@ -409,8 +424,7 @@ def apply_labels_to_repo(labels: List[Label], repo_full_name: str) -> int:
     help="아카이브 레포지토리의 레이블 파일 사용",
 )
 @click.confirmation_option(
-    prompt="모든 레이블을 삭제하고 새로운 레이블을 적용하시겠습니까?",
-    help="확인 없이 실행합니다."
+    prompt="모든 레이블을 삭제하고 새로운 레이블을 적용하시겠습니까?", help="확인 없이 실행합니다."
 )
 def sync_labels(repo_url: Optional[str], labels_file: Optional[str], archive: bool):
     """레이블을 [bold green]동기화[/]합니다.
@@ -448,7 +462,9 @@ def sync_labels(repo_url: Optional[str], labels_file: Optional[str], archive: bo
 
         # 기본 아카이브 레포지토리가 없거나 레이블 파일이 없으면 기본 레이블 사용
         if not labels:
-            default_labels_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "default_config.yml")
+            default_labels_file = os.path.join(
+                os.path.dirname(os.path.dirname(__file__)), "data", "default_config.yml"
+            )
             labels = Config.load_labels(default_labels_file)
 
     if not labels:
@@ -466,11 +482,13 @@ def sync_labels(repo_url: Optional[str], labels_file: Optional[str], archive: bo
         console.print("[info]새 레이블을 생성합니다...[/]")
         success_count = apply_labels_to_repo(labels, repo.full_name)
 
-        console.print(Panel(
-            f"[success]{success_count}[/]/{len(labels)} 개의 레이블 동기화 완료",
-            title="작업 완료",
-            border_style="green"
-        ))
+        console.print(
+            Panel(
+                f"[success]{success_count}[/]/{len(labels)} 개의 레이블 동기화 완료",
+                title="작업 완료",
+                border_style="green",
+            )
+        )
 
     finally:
         # 임시 파일 삭제
@@ -489,7 +507,7 @@ def sync_labels(repo_url: Optional[str], labels_file: Optional[str], archive: bo
 )
 @click.confirmation_option(
     prompt="모든 레이블을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다!",
-    help="확인 없이 실행합니다."
+    help="확인 없이 실행합니다.",
 )
 def clear_all_labels(repo_url: Optional[str]):
     """레이포지토리의 [bold red]모든 라벨을 삭제[/]합니다.
@@ -519,7 +537,9 @@ def clear_all_labels(repo_url: Optional[str]):
     "--labels-file",
     "--file",
     "-f",
-    default=lambda: os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "default_config.yml"),
+    default=lambda: os.path.join(
+        os.path.dirname(os.path.dirname(__file__)), "data", "default_config.yml"
+    ),
     show_default=True,
     help="Labels YAML 파일 경로 (alias: --file)",
 )
@@ -551,8 +571,10 @@ def apply_labels(repo_url: Optional[str], labels_file: str):
         else:
             console.print(f"[warning]name 또는 color가 없는 라벨 항목이 있습니다: {label}[/]")
 
-    console.print(Panel(
-        f"[success]{success_count}[/]/{len(labels)} 개의 레이블 적용 완료",
-        title="작업 완료",
-        border_style="green"
-    ))
+    console.print(
+        Panel(
+            f"[success]{success_count}[/]/{len(labels)} 개의 레이블 적용 완료",
+            title="작업 완료",
+            border_style="green",
+        )
+    )

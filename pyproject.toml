@@ -61,3 +61,8 @@ lint.select = ["I", "E", "F", "W", "C90"]
 known-first-party = ["fown"]
 combine-as-imports = true
 force-single-line = false
+
+[tool.ruff.format]
+line-ending = "lf"
+quote-style = "double"
+indent-style = "space"

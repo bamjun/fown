@@ -1,6 +1,7 @@
 """
 fown CLI 메인 엔트리포인트
 """
+
 import rich_click as click
 
 from fown import __version__
