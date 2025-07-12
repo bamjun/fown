@@ -140,7 +140,7 @@ def get_script_file_content(repo_name: str, owner: str, file_path: str) -> Optio
                 # 임시 파일에 저장
                 file_name = os.path.basename(file_path)
                 temp_dir = tempfile.gettempdir()
-                temp_file_name = f"fown_script_{next(tempfile._get_candidate_names())}{os.path.splitext(file_name)[1]}"
+                temp_file_name = f"fown_script_{os.urandom(6).hex()}{os.path.splitext(file_name)[1]}"
                 temp_file_path = os.path.join(temp_dir, temp_file_name)
 
                 with open(temp_file_path, "w", encoding="utf-8") as f:
