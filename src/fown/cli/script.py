@@ -556,7 +556,7 @@ def delete_script():
 
 
 @script_group.command(name="load")
-def load_script():
+def load_script() -> None:
     """아카이브 레포지토리의 [bold green]스크립트를 다운로드[/]합니다.
 
     기본 아카이브 레포지토리의 scripts/ 폴더에서 스크립트를 선택하여 현재 경로에 다운로드합니다.

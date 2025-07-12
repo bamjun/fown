@@ -14,10 +14,10 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.prompt import Prompt
 from rich.table import Table
 
+from fown.cli.archive import get_user_repository_by_name
 from fown.core.models.config import Config, Label, Repository
 from fown.core.services.github import LabelService
 from fown.core.utils.file_io import check_gh_installed, console, get_git_repo_url, run_gh_command
-from fown.cli.archive import get_user_repository_by_name
 
 # 이 모듈은 향후 확장을 위해 준비되었습니다.
 # 현재는 main.py에 구현된 레이블 명령어를 이 모듈로 이동할 수 있습니다.
@@ -47,20 +47,20 @@ def find_default_archive_repo() -> Tuple[bool, Optional[str], Optional[str]]:
             console.print("[error]GitHub 사용자 정보를 가져올 수 없습니다.[/]")
             console.print("GitHub CLI에 로그인되어 있는지 확인하세요: gh auth login")
             return False, None, None
-        
+
         repo = get_user_repository_by_name("fown-archive")
         if not repo:
             console.print("[info]등록된 기본 레포지토리가 없습니다.[/]")
             return False, None, None
-        
+
         if repo["total_count"] == 0:
             console.print("[info]등록된 기본 레포지토리가 없습니다.[/]")
             return False, None, None
-        
+
         if repo["total_count"] == 1:
             console.print(f"[info]레포지토리 [bold]{repo['items'][0]['name']}[/] 발견, 설정 확인 중...[/]")
             return True, repo["items"][0]["name"], username
-        
+
         if repo["total_count"] > 1:
             try:
                 for item in repo["items"]:
@@ -81,7 +81,7 @@ def find_default_archive_repo() -> Tuple[bool, Optional[str], Optional[str]]:
                                 return True, item["name"], username
             except Exception as e:
                 console.print(f"[error]레포지토리 확인 실패:[/] {str(e)}")
-                return False, None, None                
+                return False, None, None
         console.print("[info]기본 아카이브 레포지토리를 찾을 수 없습니다.[/]")
         return False, None, None
     except Exception as e:

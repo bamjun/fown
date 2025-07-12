@@ -28,27 +28,27 @@ def get_user_repository_by_name(repo_name: str) -> Optional[Dict]:
     Returns:
         Optional[Dict]: 레포지토리 정보 또는 None
     """
-    try:        
+    try:
         # gh search repos 명령어로 검색
         args = ["search", "repos", repo_name, f"--owner={get_github_username()}", "--json", "name,description,visibility,updatedAt"]
         stdout, _ = run_gh_command(args)
-        
+
         if not stdout:
             return None
-            
+
         # 검색 결과 파싱
         import json
         repos = json.loads(stdout)
-        
+
         # 검색된 레포지토리 수 반환
         if not repos:
             return None
-            
+
         return {
             "total_count": len(repos),
             "items": repos
         }
-        
+
     except Exception as e:
         from fown.core.utils.file_io import console
         console.print(f"[error]레포지토리 검색 실패:[/] {str(e)}")
@@ -71,11 +71,9 @@ def get_user_repositories() -> List[Dict]:
 
 def get_available_repo_name(base_name: str, existing_repos: Optional[List[Dict]] = None) -> str:
     """사용 가능한 레포지토리 이름 찾기
-    
     Args:
         base_name: 기본 레포지토리 이름 (예: fown-archive)
         existing_repos: 이미 가져온 레포지토리 목록 (없으면 새로 가져옴)
-        
     Returns:
         str: 사용 가능한 레포지토리 이름
     """
@@ -105,12 +103,10 @@ def get_available_repo_name(base_name: str, existing_repos: Optional[List[Dict]]
 
 def create_archive_repo(repo_name: str, description: str, is_public: bool = False) -> bool:
     """GitHub에 아카이브 레포지토리 생성
-    
     Args:
         repo_name: 생성할 레포지토리 이름
         description: 레포지토리 설명
         is_public: 공개 레포지토리 여부 (기본값: 비공개)
-        
     Returns:
         bool: 생성 성공 여부
     """
@@ -171,7 +167,6 @@ def get_github_user_info() -> Optional[Dict]:
 
 def create_fown_config_file(repo_owner: str, repo_name: str, labels: List[Label], is_default: bool = True) -> bool:
     """아카이브 레포지토리에 .fown/config.yml 파일 생성
-    
     Args:
         repo_owner: 레포지토리 소유자 이름
         repo_name: 레포지토리 이름
@@ -260,15 +255,12 @@ def create_fown_config_file(repo_owner: str, repo_name: str, labels: List[Label]
 
 def check_existing_default_repo(username: str, base_name: str, existing_repos: Optional[List[Dict]] = None) -> Tuple[bool, Optional[str]]:
     """사용자의 레포지토리 중 기본 아카이브 레포지토리가 있는지 확인
-    
     fown-archive부터 fown-archive9까지의 레포지토리를 검사하여
     .fown/config.yml 파일에 default_repository: True가 설정된 레포지토리가 있는지 확인합니다.
-    
     Args:
         username: GitHub 사용자 이름
         base_name: 기본 레포지토리 이름 (예: fown-archive)
         existing_repos: 이미 가져온 레포지토리 목록 (없으면 새로 가져옴)
-        
     Returns:
         Tuple[bool, Optional[str]]: (기본 레포지토리 존재 여부, 기본 레포지토리 이름)
     """
@@ -350,12 +342,9 @@ def check_existing_default_repo(username: str, base_name: str, existing_repos: O
 )
 def make_archive(repo_url: Optional[str], archive_name: str, default: bool, force: bool, public: bool):
     """저장소 설정을 [bold green]아카이브[/]합니다.
-
     현재 저장소의 설정을 새로운 GitHub 레포지토리에 아카이브합니다.
-    
     기본 설정 레포지토리로 지정하려면 --default 옵션을 사용합니다.
     이미 기본 설정 레포지토리가 있는 경우 --force 옵션을 사용하여 강제로 생성할 수 있습니다.
-    
     기본적으로 비공개 레포지토리로 생성되며, --public 옵션을 사용하여 공개 레포지토리로 설정할 수 있습니다.
     """
     check_gh_installed()
