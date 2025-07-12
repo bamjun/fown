@@ -31,59 +31,107 @@ def labels_group():
     pass
 
 
-def find_default_archive_repo() -> Tuple[bool, Optional[str], Optional[str]]:
-    """기본 아카이브 레포지토리 찾기
-    
+def check_github_auth() -> Optional[str]:
+    """GitHub 인증 상태를 확인하고 사용자 이름을 반환합니다.
+
     Returns:
-        Tuple[bool, Optional[str], Optional[str]]: 
+        Optional[str]: 인증된 사용자 이름 또는 None
+    """
+    from fown.cli.archive import get_github_username
+
+    username = get_github_username()
+    if not username:
+        console.print("[error]GitHub 사용자 정보를 가져올 수 없습니다.[/]")
+        console.print("GitHub CLI에 로그인되어 있는지 확인하세요: gh auth login")
+        return None
+    return username
+
+
+def get_config_from_repo(username: str, repo_name: str) -> Optional[Dict]:
+    """레포지토리의 .fown/config.yml 파일 내용을 가져옵니다.
+
+    Args:
+        username: GitHub 사용자 이름
+        repo_name: 레포지토리 이름
+
+    Returns:
+        Optional[Dict]: 설정 내용 또는 None
+    """
+    try:
+        config_args = ["api", f"/repos/{username}/{repo_name}/contents/.fown/config.yml"]
+        config_stdout, _ = run_gh_command(config_args)
+        if config_stdout:
+            # base64로 인코딩된 내용을 디코딩
+            import base64
+            content_data = json.loads(config_stdout)
+            if "content" in content_data:
+                content = base64.b64decode(content_data["content"]).decode("utf-8")
+                import yaml
+                return yaml.safe_load(content)
+    except Exception:
+        pass
+    return None
+
+
+def find_default_repo_from_list(username: str, repos: Dict) -> Tuple[bool, Optional[str]]:
+    """레포지토리 목록에서 기본 레포지토리를 찾습니다.
+
+    Args:
+        username: GitHub 사용자 이름
+        repos: 레포지토리 목록 정보
+
+    Returns:
+        Tuple[bool, Optional[str]]: (찾았는지 여부, 레포지토리 이름)
+    """
+    if repos["total_count"] == 0:
+        console.print("[info]등록된 기본 레포지토리가 없습니다.[/]")
+        return False, None
+
+    if repos["total_count"] == 1:
+        console.print(f"[info]레포지토리 [bold]{repos['items'][0]['name']}[/] 발견, 설정 확인 중...[/]")
+        return True, repos["items"][0]["name"]
+
+    if repos["total_count"] > 1:
+        try:
+            for item in repos["items"]:
+                config = get_config_from_repo(username, item["name"])
+                if config and config.get("default_repository") is True:
+                    console.print(f"[info]기본 레포지토리 [bold]{item['name']}[/] 발견![/]")
+                    return True, item["name"]
+        except Exception as e:
+            console.print(f"[error]레포지토리 확인 실패:[/] {str(e)}")
+            return False, None
+
+    console.print("[info]기본 아카이브 레포지토리를 찾을 수 없습니다.[/]")
+    return False, None
+
+
+def find_default_archive_repo() -> Tuple[bool, Optional[str], Optional[str]]:
+    """기본 아카이브 레포지토리를 찾습니다.
+
+    Returns:
+        Tuple[bool, Optional[str], Optional[str]]:
             (찾았는지 여부, 레포지토리 이름, 레포지토리 소유자)
     """
     try:
-        # 현재 인증된 사용자 정보 가져오기
-        from fown.cli.archive import get_github_username
-
-        username = get_github_username()
+        # GitHub 인증 확인
+        username = check_github_auth()
         if not username:
-            console.print("[error]GitHub 사용자 정보를 가져올 수 없습니다.[/]")
-            console.print("GitHub CLI에 로그인되어 있는지 확인하세요: gh auth login")
             return False, None, None
 
+        # 레포지토리 검색
         repo = get_user_repository_by_name("fown-archive")
         if not repo:
             console.print("[info]등록된 기본 레포지토리가 없습니다.[/]")
             return False, None, None
 
-        if repo["total_count"] == 0:
-            console.print("[info]등록된 기본 레포지토리가 없습니다.[/]")
-            return False, None, None
+        # 기본 레포지토리 찾기
+        found, repo_name = find_default_repo_from_list(username, repo)
+        if found and repo_name:
+            return True, repo_name, username
 
-        if repo["total_count"] == 1:
-            console.print(f"[info]레포지토리 [bold]{repo['items'][0]['name']}[/] 발견, 설정 확인 중...[/]")
-            return True, repo["items"][0]["name"], username
-
-        if repo["total_count"] > 1:
-            try:
-                for item in repo["items"]:
-                    config_args = ["api", f"/repos/{username}/{item['name']}/contents/.fown/config.yml"]
-                    config_stdout, _ = run_gh_command(config_args)
-                    if config_stdout:
-                        # base64로 인코딩된 내용을 디코딩
-                        import base64
-                        content_data = json.loads(config_stdout)
-                        if "content" in content_data:
-                            content = base64.b64decode(content_data["content"]).decode("utf-8")
-                            import yaml
-                            config = yaml.safe_load(content)
-
-                            # default_repository 값 확인
-                            if config and config.get("default_repository") is True:
-                                console.print(f"[info]기본 레포지토리 [bold]{item['name']}[/] 발견![/]")
-                                return True, item["name"], username
-            except Exception as e:
-                console.print(f"[error]레포지토리 확인 실패:[/] {str(e)}")
-                return False, None, None
-        console.print("[info]기본 아카이브 레포지토리를 찾을 수 없습니다.[/]")
         return False, None, None
+
     except Exception as e:
         console.print(f"[error]레포지토리 확인 실패:[/] {str(e)}")
         return False, None, None
@@ -91,11 +139,9 @@ def find_default_archive_repo() -> Tuple[bool, Optional[str], Optional[str]]:
 
 def get_archive_labels_file(repo_name: str, owner: str) -> Optional[str]:
     """아카이브 레포지토리에서 레이블 파일 가져오기
-    
     Args:
         repo_name: 레포지토리 이름
         owner: 레포지토리 소유자
-        
     Returns:
         Optional[str]: 임시 파일 경로 또는 None
     """
@@ -131,11 +177,9 @@ def get_archive_labels_file(repo_name: str, owner: str) -> Optional[str]:
 
 def list_archive_label_files(repo_name: str, owner: str) -> List[Dict]:
     """아카이브 레포지토리의 labels 디렉토리에 있는 파일 목록 가져오기
-    
     Args:
         repo_name: 레포지토리 이름
         owner: 레포지토리 소유자
-        
     Returns:
         List[Dict]: 파일 목록 (이름, 경로, 타입)
     """
@@ -158,12 +202,10 @@ def list_archive_label_files(repo_name: str, owner: str) -> List[Dict]:
 
 def get_label_file_content(repo_name: str, owner: str, file_path: str) -> Optional[str]:
     """아카이브 레포지토리에서 특정 레이블 파일 내용 가져오기
-    
     Args:
         repo_name: 레포지토리 이름
         owner: 레포지토리 소유자
         file_path: 파일 경로
-        
     Returns:
         Optional[str]: 임시 파일 경로 또는 None
     """
@@ -194,12 +236,10 @@ def get_label_file_content(repo_name: str, owner: str, file_path: str) -> Option
 
 def show_label_files_menu(files: List[Dict], repo_name: str, owner: str) -> Optional[str]:
     """레이블 파일 선택 메뉴 표시
-    
     Args:
         files: 파일 목록
         repo_name: 레포지토리 이름
         owner: 레포지토리 소유자
-        
     Returns:
         Optional[str]: 선택한 레이블 파일 경로 또는 None
     """
@@ -266,10 +306,8 @@ def show_label_files_menu(files: List[Dict], repo_name: str, owner: str) -> Opti
 
 def load_labels_from_json(file_path: str) -> List[Label]:
     """JSON 파일에서 레이블 목록 로드
-    
     Args:
         file_path: JSON 파일 경로
-        
     Returns:
         List[Label]: 레이블 목록
     """
@@ -280,6 +318,76 @@ def load_labels_from_json(file_path: str) -> List[Label]:
     except Exception as e:
         console.print(f"[error]레이블 파일 로드 실패:[/] {str(e)}")
         return []
+
+
+def load_labels_from_archive(repo_name: str, owner: str, show_menu: bool = False) -> Tuple[List[Label], Optional[str]]:
+    """아카이브 레포지토리에서 레이블을 로드합니다.
+
+    Args:
+        repo_name: 레포지토리 이름
+        owner: 레포지토리 소유자
+        show_menu: 레이블 파일 선택 메뉴 표시 여부
+
+    Returns:
+        Tuple[List[Label], Optional[str]]: (레이블 목록, 임시 파일 경로)
+    """
+    temp_file_path = None
+    labels = []
+
+    if show_menu:
+        # 아카이브 레포지토리에서 레이블 파일 선택
+        files = list_archive_label_files(repo_name, owner)
+        if files:
+            temp_file_path = show_label_files_menu(files, repo_name, owner)
+            if temp_file_path:
+                labels = load_labels_from_json(temp_file_path)
+    else:
+        # 기본 아카이브 레포지토리의 레이블 파일 사용
+        temp_file_path = get_archive_labels_file(repo_name, owner)
+        if temp_file_path:
+            labels = load_labels_from_json(temp_file_path)
+
+    return labels, temp_file_path
+
+
+def load_labels_from_file(labels_file: str) -> List[Label]:
+    """파일에서 레이블을 로드합니다.
+
+    Args:
+        labels_file: 레이블 파일 경로
+
+    Returns:
+        List[Label]: 레이블 목록
+    """
+    file_ext = Path(labels_file).suffix.lower()
+    if file_ext == '.json':
+        return load_labels_from_json(labels_file)
+    return Config.load_labels(labels_file)
+
+
+def apply_labels_to_repo(labels: List[Label], repo_full_name: str) -> int:
+    """레포지토리에 레이블을 적용합니다.
+
+    Args:
+        labels: 레이블 목록
+        repo_full_name: 레포지토리 전체 이름 (owner/repo)
+
+    Returns:
+        int: 성공적으로 적용된 레이블 수
+    """
+    success_count = 0
+    with Progress() as progress:
+        task = progress.add_task("[cyan]레이블 생성 중...[/]", total=len(labels))
+
+        for label in labels:
+            if label.name and label.color:
+                if LabelService.create_label(label, repo_full_name):
+                    success_count += 1
+            else:
+                console.print(f"[warning]name 또는 color가 없는 라벨 항목이 있습니다: {label}[/]")
+            progress.update(task, advance=1)
+
+    return success_count
 
 
 @labels_group.command(name="sync")
@@ -306,12 +414,9 @@ def load_labels_from_json(file_path: str) -> List[Label]:
 )
 def sync_labels(repo_url: Optional[str], labels_file: Optional[str], archive: bool):
     """레이블을 [bold green]동기화[/]합니다.
-
     모든 레이블을 삭제하고 새로운 레이블을 적용합니다.
-    
     파일이나 URL을 지정하지 않으면 기본 아카이브 레포지토리의 레이블을 사용합니다.
     기본 아카이브 레포지토리가 없으면 기본 레이블을 사용합니다.
-    
     --archive 옵션을 사용하면 아카이브 레포지토리의 레이블 파일 목록에서 선택할 수 있습니다.
     """
     check_gh_installed()
@@ -323,34 +428,23 @@ def sync_labels(repo_url: Optional[str], labels_file: Optional[str], archive: bo
 
     console.print(f"[info]레포지토리 [bold]{repo.full_name}[/]의 레이블을 동기화합니다...[/]")
 
-    # 레이블 파일 경로 결정
+    # 레이블 로드
     labels = []
     temp_file_path = None
 
     if labels_file:
         # 사용자가 지정한 파일 사용
-        file_ext = Path(labels_file).suffix.lower()
-        if file_ext == '.json':
-            labels = load_labels_from_json(labels_file)
-        else:
-            labels = Config.load_labels(labels_file)
+        labels = load_labels_from_file(labels_file)
     elif archive:
         # 아카이브 레포지토리에서 레이블 파일 선택
         found, repo_name, owner = find_default_archive_repo()
         if found and repo_name and owner:  # None 체크 추가
-            files = list_archive_label_files(repo_name, owner)
-            if files:
-                temp_file_path = show_label_files_menu(files, repo_name, owner)
-                if temp_file_path:
-                    labels = load_labels_from_json(temp_file_path)
+            labels, temp_file_path = load_labels_from_archive(repo_name, owner, show_menu=True)
     else:
         # 기본 아카이브 레포지토리 확인
         found, repo_name, owner = find_default_archive_repo()
         if found and repo_name and owner:  # None 체크 추가
-            # 기본 아카이브 레포지토리의 레이블 파일 사용
-            temp_file_path = get_archive_labels_file(repo_name, owner)
-            if temp_file_path:
-                labels = load_labels_from_json(temp_file_path)
+            labels, temp_file_path = load_labels_from_archive(repo_name, owner)
 
         # 기본 아카이브 레포지토리가 없거나 레이블 파일이 없으면 기본 레이블 사용
         if not labels:
@@ -363,36 +457,28 @@ def sync_labels(repo_url: Optional[str], labels_file: Optional[str], archive: bo
 
     console.print(f"[info]{len(labels)}개의 레이블 정의를 로드했습니다.[/]")
 
-    # 기존 레이블 모두 삭제
-    console.print("[info]기존 레이블을 모두 삭제합니다...[/]")
-    LabelService.delete_all_labels(repo.full_name)
+    try:
+        # 기존 레이블 모두 삭제
+        console.print("[info]기존 레이블을 모두 삭제합니다...[/]")
+        LabelService.delete_all_labels(repo.full_name)
 
-    # 새 레이블 생성
-    console.print("[info]새 레이블을 생성합니다...[/]")
-    success_count = 0
-    with Progress() as progress:
-        task = progress.add_task("[cyan]레이블 생성 중...[/]", total=len(labels))
+        # 새 레이블 생성
+        console.print("[info]새 레이블을 생성합니다...[/]")
+        success_count = apply_labels_to_repo(labels, repo.full_name)
 
-        for label in labels:
-            if label.name and label.color:
-                if LabelService.create_label(label, repo.full_name):
-                    success_count += 1
-            else:
-                console.print(f"[warning]name 또는 color가 없는 라벨 항목이 있습니다: {label}[/]")
-            progress.update(task, advance=1)
+        console.print(Panel(
+            f"[success]{success_count}[/]/{len(labels)} 개의 레이블 동기화 완료",
+            title="작업 완료",
+            border_style="green"
+        ))
 
-    # 임시 파일 삭제
-    if temp_file_path and os.path.exists(temp_file_path):
-        try:
-            os.unlink(temp_file_path)
-        except:
-            pass
-
-    console.print(Panel(
-        f"[success]{success_count}[/]/{len(labels)} 개의 레이블 동기화 완료",
-        title="작업 완료",
-        border_style="green"
-    ))
+    finally:
+        # 임시 파일 삭제
+        if temp_file_path and os.path.exists(temp_file_path):
+            try:
+                os.unlink(temp_file_path)
+            except Exception:
+                pass
 
 
 @labels_group.command(name="clear-all")
