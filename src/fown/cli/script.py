@@ -241,7 +241,12 @@ def run_script(script_path: str):
         if file_ext == '.py':
             # Python 스크립트 실행
             console.print(f"[info]Python 스크립트 실행 중: [bold]{script_name}[/][/]")
-            result = subprocess.run([sys.executable, script_path], capture_output=True, text=True)
+            result = subprocess.run(
+                [sys.executable, script_path],
+                capture_output=True,
+                text=True,
+                encoding='utf-8'
+            )
         elif file_ext == '.sh':
             # Shell 스크립트 실행
             console.print(f"[info]Shell 스크립트 실행 중: [bold]{script_name}[/][/]")
@@ -260,31 +265,54 @@ def run_script(script_path: str):
 
                 if bash_path:
                     # Git Bash로 실행
-                    result = subprocess.run([bash_path, script_path], capture_output=True, text=True)
+                    result = subprocess.run(
+                        [bash_path, script_path],
+                        capture_output=True,
+                        text=True,
+                        encoding='utf-8'
+                    )
                 else:
                     # Git Bash가 없으면 WSL 시도
                     try:
-                        result = subprocess.run(["wsl", "bash", script_path], capture_output=True, text=True)
+                        result = subprocess.run(
+                            ["wsl", "bash", script_path],
+                            capture_output=True,
+                            text=True,
+                            encoding='utf-8'
+                        )
                     except FileNotFoundError:
                         console.print("[error]Windows에서 bash를 찾을 수 없습니다. Git Bash 또는 WSL을 설치하세요.[/]")
                         return
             else:
                 # Linux/Mac에서는 기본 bash 사용
-                result = subprocess.run(['bash', script_path], capture_output=True, text=True)
+                result = subprocess.run(
+                    ['bash', script_path],
+                    capture_output=True,
+                    text=True,
+                    encoding='utf-8'
+                )
         else:
             console.print(f"[error]지원하지 않는 스크립트 형식: {file_ext}[/]")
             return
 
         # 실행 결과 출력
         if result.returncode == 0:
-            console.print(Panel(
-                result.stdout,
-                title="스크립트 실행 성공",
-                border_style="green"
-            ))
+            if result.stdout:  # stdout이 None이 아닐 때만 출력
+                console.print(Panel(
+                    result.stdout,
+                    title="스크립트 실행 성공",
+                    border_style="green"
+                ))
+            else:
+                console.print(Panel(
+                    "스크립트가 성공적으로 실행되었습니다.",
+                    title="스크립트 실행 성공",
+                    border_style="green"
+                ))
         else:
+            error_message = result.stderr if result.stderr else "알 수 없는 오류"
             console.print(Panel(
-                f"[error]에러 코드: {result.returncode}[/]\n\n{result.stderr}",
+                f"[error]에러 코드: {result.returncode}[/]\n\n{error_message}",
                 title="스크립트 실행 실패",
                 border_style="red"
             ))
