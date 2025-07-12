@@ -55,3 +55,9 @@ lint.ignore = ["F401", "E402", "E501"]
 
 # 린트 규칙: 선택할 규칙 그룹 (I: isort, E/F/W: PEP8, C90: 복잡성)
 lint.select = ["I", "E", "F", "W", "C90"]
+
+
+[tool.ruff.lint.isort]
+known-first-party = ["fown"]
+combine-as-imports = true
+force-single-line = false
