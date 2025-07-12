@@ -2,7 +2,7 @@
 fown 데이터 모델 정의
 """
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union, Any
 
 
 @dataclass
@@ -96,4 +96,8 @@ class Config:
         data = load_yaml(file_path)
         if not data:
             return []
-        return [Project.from_dict(item) for item in data.get("projects", [])]
+        if isinstance(data, list):
+            return [Project.from_dict(item) for item in data]
+        if isinstance(data, dict):
+            return [Project.from_dict(item) for item in data.get("projects", [])]
+        return []
