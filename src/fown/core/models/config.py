@@ -87,7 +87,9 @@ class Config:
             return []
         if isinstance(data, list):
             return [Label.from_dict(item) for item in data]
-        return [Label.from_dict(item) for item in data.get("labels", [])]
+        if isinstance(data, dict):
+            return [Label.from_dict(item) for item in data.get("labels", [])]
+        return []
 
     @classmethod
     def load_projects(cls, file_path: str) -> List[Project]:

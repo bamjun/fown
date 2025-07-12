@@ -19,6 +19,42 @@ from fown.core.services.github import LabelService
 from fown.core.utils.file_io import check_gh_installed, console, get_git_repo_url, run_gh_command
 
 
+def get_user_repository_by_name(repo_name: str) -> Optional[Dict]:
+    """사용자의 레포지토리 중 이름으로 검색
+
+    Args:
+        repo_name: 레포지토리 이름 (부분 일치)
+
+    Returns:
+        Optional[Dict]: 레포지토리 정보 또는 None
+    """
+    try:        
+        # gh search repos 명령어로 검색
+        args = ["search", "repos", repo_name, f"--owner={get_github_username()}", "--json", "name,description,visibility,updatedAt"]
+        stdout, _ = run_gh_command(args)
+        
+        if not stdout:
+            return None
+            
+        # 검색 결과 파싱
+        import json
+        repos = json.loads(stdout)
+        
+        # 검색된 레포지토리 수 반환
+        if not repos:
+            return None
+            
+        return {
+            "total_count": len(repos),
+            "items": repos
+        }
+        
+    except Exception as e:
+        from fown.core.utils.file_io import console
+        console.print(f"[error]레포지토리 검색 실패:[/] {str(e)}")
+        return None
+
+
 def get_user_repositories() -> List[Dict]:
     """사용자의 모든 레포지토리 목록 가져오기"""
     try:

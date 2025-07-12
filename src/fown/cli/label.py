@@ -17,6 +17,7 @@ from rich.table import Table
 from fown.core.models.config import Config, Label, Repository
 from fown.core.services.github import LabelService
 from fown.core.utils.file_io import check_gh_installed, console, get_git_repo_url, run_gh_command
+from fown.cli.archive import get_user_repository_by_name
 
 # 이 모듈은 향후 확장을 위해 준비되었습니다.
 # 현재는 main.py에 구현된 레이블 명령어를 이 모듈로 이동할 수 있습니다.
@@ -39,50 +40,48 @@ def find_default_archive_repo() -> Tuple[bool, Optional[str], Optional[str]]:
     """
     try:
         # 현재 인증된 사용자 정보 가져오기
-        from fown.cli.archive import get_github_username, get_user_repositories
+        from fown.cli.archive import get_github_username
 
         username = get_github_username()
         if not username:
             console.print("[error]GitHub 사용자 정보를 가져올 수 없습니다.[/]")
             console.print("GitHub CLI에 로그인되어 있는지 확인하세요: gh auth login")
             return False, None, None
-
-        # 사용자의 레포지토리 목록 가져오기
-        repos = get_user_repositories()
-        repo_names = {repo["name"] for repo in repos}
-
-        # fown-archive부터 fown-archive9까지 확인
-        for i in range(10):
-            suffix = "" if i == 0 else str(i)
-            repo_name = f"fown-archive{suffix}"
-
-            if repo_name not in repo_names:
-                continue
-
-            console.print(f"[info]레포지토리 [bold]{repo_name}[/] 발견, 설정 확인 중...[/]")
-
-            # 레포지토리가 존재하면 .fown/config.yml 파일 확인
+        
+        repo = get_user_repository_by_name("fown-archive")
+        if not repo:
+            console.print("[info]등록된 기본 레포지토리가 없습니다.[/]")
+            return False, None, None
+        
+        if repo["total_count"] == 0:
+            console.print("[info]등록된 기본 레포지토리가 없습니다.[/]")
+            return False, None, None
+        
+        if repo["total_count"] == 1:
+            console.print(f"[info]레포지토리 [bold]{repo['items'][0]['name']}[/] 발견, 설정 확인 중...[/]")
+            return True, repo["items"][0]["name"], username
+        
+        if repo["total_count"] > 1:
             try:
-                config_args = ["api", f"/repos/{username}/{repo_name}/contents/.fown/config.yml"]
-                config_stdout, _ = run_gh_command(config_args)
+                for item in repo["items"]:
+                    config_args = ["api", f"/repos/{username}/{item['name']}/contents/.fown/config.yml"]
+                    config_stdout, _ = run_gh_command(config_args)
+                    if config_stdout:
+                        # base64로 인코딩된 내용을 디코딩
+                        import base64
+                        content_data = json.loads(config_stdout)
+                        if "content" in content_data:
+                            content = base64.b64decode(content_data["content"]).decode("utf-8")
+                            import yaml
+                            config = yaml.safe_load(content)
 
-                if config_stdout:
-                    # base64로 인코딩된 내용을 디코딩
-                    import base64
-                    content_data = json.loads(config_stdout)
-                    if "content" in content_data:
-                        content = base64.b64decode(content_data["content"]).decode("utf-8")
-                        import yaml
-                        config = yaml.safe_load(content)
-
-                        # default_repository 값 확인
-                        if config and config.get("default_repository") is True:
-                            console.print(f"[info]기본 레포지토리 [bold]{repo_name}[/] 발견![/]")
-                            return True, repo_name, username
-            except Exception:
-                # config.yml 파일이 없거나 접근할 수 없는 경우 무시
-                pass
-
+                            # default_repository 값 확인
+                            if config and config.get("default_repository") is True:
+                                console.print(f"[info]기본 레포지토리 [bold]{item['name']}[/] 발견![/]")
+                                return True, item["name"], username
+            except Exception as e:
+                console.print(f"[error]레포지토리 확인 실패:[/] {str(e)}")
+                return False, None, None                
         console.print("[info]기본 아카이브 레포지토리를 찾을 수 없습니다.[/]")
         return False, None, None
     except Exception as e:
@@ -338,7 +337,7 @@ def sync_labels(repo_url: Optional[str], labels_file: Optional[str], archive: bo
     elif archive:
         # 아카이브 레포지토리에서 레이블 파일 선택
         found, repo_name, owner = find_default_archive_repo()
-        if found:
+        if found and repo_name and owner:  # None 체크 추가
             files = list_archive_label_files(repo_name, owner)
             if files:
                 temp_file_path = show_label_files_menu(files, repo_name, owner)
