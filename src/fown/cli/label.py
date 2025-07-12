@@ -346,7 +346,7 @@ def sync_labels(repo_url: Optional[str], labels_file: Optional[str], archive: bo
     else:
         # 기본 아카이브 레포지토리 확인
         found, repo_name, owner = find_default_archive_repo()
-        if found:
+        if found and repo_name and owner:  # None 체크 추가
             # 기본 아카이브 레포지토리의 레이블 파일 사용
             temp_file_path = get_archive_labels_file(repo_name, owner)
             if temp_file_path:
