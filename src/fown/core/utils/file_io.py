@@ -33,8 +33,8 @@ def check_gh_installed() -> None:
         )
     except Exception:
         console.print(
-            Panel("[error]GitHub CLI(gh)가 설치되어 있지 않습니다.[/]", 
-                  title="오류", 
+            Panel("[error]GitHub CLI(gh)가 설치되어 있지 않습니다.[/]",
+                  title="오류",
                   subtitle="설치 후 다시 시도하세요. site: https://cli.github.com/")
         )
         raise SystemExit(1)
@@ -45,7 +45,7 @@ def load_yaml(file_path: str) -> Union[List, Dict, None]:
     if not os.path.exists(file_path):
         console.print(f"[error]{file_path} 파일이 존재하지 않습니다.[/]")
         raise SystemExit(1)
-    
+
     with open(file_path, "r", encoding="utf-8") as f:
         return yaml.safe_load(f)
 
@@ -94,17 +94,17 @@ def run_gh_command(args: List[str], check: bool = True) -> Tuple[Optional[str], 
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
-        
+
         stdout = result.stdout
         stderr = result.stderr
-        
+
         # 바이너리 출력을 UTF-8로 디코딩 (errors='replace'로 잘못된 바이트 처리)
         stdout_text = stdout.decode("utf-8", errors="replace").strip() if stdout else None
         stderr_text = stderr.decode("utf-8", errors="replace").strip() if stderr else None
-        
+
         return stdout_text, stderr_text
     except subprocess.CalledProcessError as e:
         if e.stderr:
             stderr_text = e.stderr.decode("utf-8", errors="replace")
             console.print(f"[error]명령 실행 실패:[/] {stderr_text}")
-        raise 
+        raise

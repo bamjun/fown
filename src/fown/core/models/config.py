@@ -96,4 +96,4 @@ class Config:
         data = load_yaml(file_path)
         if not data:
             return []
-        return [Project.from_dict(item) for item in data.get("projects", [])] 
+        return [Project.from_dict(item) for item in data.get("projects", [])]
