@@ -553,3 +553,126 @@ def delete_script():
                 console.print("[error]잘못된 선택입니다. 다시 시도하세요.[/]")
                 import time
                 time.sleep(1)
+
+
+@script_group.command(name="load")
+def load_script():
+    """아카이브 레포지토리의 [bold green]스크립트를 다운로드[/]합니다.
+
+    기본 아카이브 레포지토리의 scripts/ 폴더에서 스크립트를 선택하여 현재 경로에 다운로드합니다.
+    """
+    check_gh_installed()
+
+    # 기본 아카이브 레포지토리 찾기
+    found, repo_name, owner = find_default_archive_repo()
+    if not found:
+        console.print("[error]기본 아카이브 레포지토리를 찾을 수 없습니다.[/]")
+        console.print("먼저 make-fown-archive 명령어로 기본 아카이브 레포지토리를 생성하세요.")
+        return
+
+    # 스크립트 파일 목록 가져오기
+    files = list_archive_script_files(repo_name, owner)
+    if not files:
+        console.print(f"[warning][bold]{repo_name}[/] 레포지토리의 scripts/ 폴더에 스크립트 파일이 없습니다.[/]")
+        console.print("scripts/ 폴더에 .py 또는 .sh 파일을 추가하세요.")
+        return
+
+    # 스크립트 파일 선택 메뉴 표시
+    page_size = 5
+    current_page = 0
+    total_pages = (len(files) + page_size - 1) // page_size
+
+    while True:
+        console.clear()
+        console.print(Panel(
+            f"[bold]{repo_name}[/] 레포지토리의 스크립트 파일 목록 (페이지 {current_page + 1}/{total_pages})",
+            border_style="cyan"
+        ))
+
+        # 현재 페이지에 표시할 파일 목록
+        start_idx = current_page * page_size
+        end_idx = min(start_idx + page_size, len(files))
+        current_files = files[start_idx:end_idx]
+
+        # 테이블 생성
+        table = Table(show_header=True)
+        table.add_column("#", style="cyan", justify="right")
+        table.add_column("파일명", style="green")
+        table.add_column("경로", style="dim")
+
+        # 파일 목록 표시
+        for i, file in enumerate(current_files, 1):
+            table.add_row(str(i), file["name"], file["path"])
+
+        console.print(table)
+
+        # 안내 메시지
+        console.print("\n[bold]명령어:[/]")
+        console.print(" 1-5: 파일 선택")
+        if total_pages > 1:
+            console.print(" n: 다음 페이지")
+            console.print(" p: 이전 페이지")
+        console.print(" q: 종료")
+
+        # 사용자 입력 받기
+        choice = Prompt.ask("선택").strip().lower()
+
+        if choice == 'q':
+            return
+        elif choice == 'n' and current_page < total_pages - 1:
+            current_page += 1
+        elif choice == 'p' and current_page > 0:
+            current_page -= 1
+        elif choice.isdigit():
+            idx = int(choice)
+            if 1 <= idx <= len(current_files):
+                file_idx = start_idx + idx - 1
+                selected_file = files[file_idx]
+
+                try:
+                    # GitHub API를 통해 파일 내용 가져오기
+                    args = ["api", f"/repos/{owner}/{repo_name}/contents/{selected_file['path']}"]
+                    stdout, _ = run_gh_command(args)
+
+                    if stdout:
+                        # base64로 인코딩된 내용을 디코딩
+                        import base64
+                        content_data = json.loads(stdout)
+                        if "content" in content_data:
+                            content = base64.b64decode(content_data["content"]).decode("utf-8")
+
+                            # 현재 경로에 파일 저장
+                            file_name = selected_file["name"]
+                            target_path = os.path.join(os.getcwd(), file_name)
+
+                            # 파일이 이미 존재하는 경우 확인
+                            if os.path.exists(target_path):
+                                if not Prompt.ask(
+                                    f"[bold yellow]파일 '{file_name}'이(가) 이미 존재합니다. 덮어쓰시겠습니까?[/]",
+                                    choices=["y", "n"],
+                                    default="n"
+                                ) == "y":
+                                    console.print("[info]다운로드가 취소되었습니다.[/]")
+                                    continue
+
+                            # 파일 저장
+                            with open(target_path, "w", encoding="utf-8") as f:
+                                f.write(content)
+
+                            # 실행 권한 부여 (.sh 파일인 경우)
+                            if file_name.endswith(".sh"):
+                                try:
+                                    os.chmod(target_path, 0o755)
+                                except Exception as e:
+                                    console.print(f"[warning]실행 권한 부여 실패: {str(e)}[/]")
+
+                            console.print(f"[success]스크립트 파일 [bold]{file_name}[/]이(가) 성공적으로 다운로드되었습니다![/]")
+                            console.print(f"[info]저장 위치: [dim]{target_path}[/][/]")
+                            return
+
+                except Exception as e:
+                    console.print(f"[error]스크립트 파일 다운로드 중 오류 발생:[/] {str(e)}")
+            else:
+                console.print("[error]잘못된 선택입니다. 다시 시도하세요.[/]")
+                import time
+                time.sleep(1)
