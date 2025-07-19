@@ -341,13 +341,58 @@ def delete_file():
     navigate_and_delete(owner, repo_name, "files")
 
 
+def _process_delete_choice(
+    owner: str, repo_name: str, current_path: str, items: List[Dict], choice: str
+) -> str:
+    """사용자의 삭제 선택을 처리하고 다음 경로를 반환합니다."""
+    if not (choice.isdigit() and 1 <= int(choice) <= len(items)):
+        console.print("[warning]잘못된 선택입니다.[/]")
+        return current_path
+
+    selected_item = items[int(choice) - 1]
+
+    if selected_item["type"] == "dir":
+        action = Prompt.ask(
+            f"'{selected_item['name']}'은(는) 디렉토리입니다. 전체 삭제(y) 또는 폴더 진입(n) 중 선택하세요.",
+            choices=["y", "n"],
+            default="n",
+        )
+        if action == "y":
+            if (
+                Prompt.ask(
+                    f"[bold red]정말로 '{selected_item['name']}' 디렉토리와 모든 하위 파일을 삭제하시겠습니까?[/]",
+                    choices=["y", "n"],
+                    default="n",
+                )
+                == "y"
+            ):
+                delete_directory_recursive(owner, repo_name, selected_item["path"])
+            return current_path
+        else:
+            return selected_item["path"]
+    else:  # 'file'
+        if (
+            Prompt.ask(
+                f"[bold red]정말로 '{selected_item['name']}'을(를) 삭제하시겠습니까?[/]",
+                choices=["y", "n"],
+                default="n",
+            )
+            == "y"
+        ):
+            delete_single_file(owner, repo_name, selected_item)
+        return current_path
+
+
 def navigate_and_delete(owner: str, repo_name: str, current_path: str):
     """파일/폴더를 탐색하고 삭제/뒤로가기 옵션을 제공합니다."""
     while True:
         items = list_archive_files(repo_name, owner, current_path)
         if not items:
-            console.print("[warning]파일이나 폴더가 없습니다.[/]")
-            return
+            console.print("[warning]파일이나 폴더가 없습니다. 상위 폴더로 이동합니다.[/]")
+            if current_path == "files":
+                return
+            current_path = str(Path(current_path).parent)
+            continue
 
         console.clear()
         console.print(Panel(f"[bold]{current_path}[/] 경로의 내용", border_style="red"))
@@ -375,22 +420,8 @@ def navigate_and_delete(owner: str, repo_name: str, current_path: str):
             if current_path == "files":
                 break
             current_path = str(Path(current_path).parent)
-        elif choice.isdigit() and 1 <= int(choice) <= len(items):
-            selected_item = items[int(choice) - 1]
-            if (
-                Prompt.ask(
-                    f"[bold red]정말로 '{selected_item['name']}'을(를) 삭제하시겠습니까?[/]",
-                    choices=["y", "n"],
-                    default="n",
-                )
-                == "y"
-            ):
-                if selected_item["type"] == "dir":
-                    delete_directory_recursive(owner, repo_name, selected_item["path"])
-                else:
-                    delete_single_file(owner, repo_name, selected_item)
-            # After deletion, stay in the same directory to see the result
-            # No break here, just continue the loop
+        else:
+            current_path = _process_delete_choice(owner, repo_name, current_path, items, choice)
 
 
 def delete_single_file(owner: str, repo_name: str, file_item: Dict):
