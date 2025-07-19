@@ -86,14 +86,23 @@ def extract_repo_info(repo_url: str) -> Tuple[str, str]:
         raise SystemExit(1)
 
 
-def run_gh_command(args: List[str], check: bool = True) -> Tuple[Optional[str], Optional[str]]:
+def run_gh_command(
+    args: List[str], check: bool = True, input_data: Optional[Union[str, bytes]] = None
+) -> Tuple[Optional[str], Optional[str]]:
     """GitHub CLI 명령 실행 및 결과 반환"""
     try:
+        # 입력 데이터가 문자열이면 바이트로 인코딩
+        if isinstance(input_data, str):
+            input_bytes: Optional[bytes] = input_data.encode("utf-8")
+        else:
+            input_bytes = input_data
+
         result = subprocess.run(
             ["gh"] + args,
             check=check,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
+            input=input_bytes,
         )
 
         stdout = result.stdout

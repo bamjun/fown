@@ -129,19 +129,22 @@ def upload_file(file_path: Path, owner: str, repo_name: str, base_repo_path: str
         ) as progress:
             progress.add_task(description=f"[cyan]파일 업로드 중: {file_path.name}[/]", total=None)
 
+            # JSON 페이로드 생성
+            payload = {
+                "message": f"Add file: {file_path.name}",
+                "content": content_base64,
+                "branch": "main",
+            }
+
             args = [
                 "api",
                 f"/repos/{owner}/{repo_name}/contents/{repo_file_path}",
                 "--method",
                 "PUT",
-                "-f",
-                f"message=Add file: {file_path.name}",
-                "-f",
-                f"content={content_base64}",
-                "-f",
-                "branch=main",
+                "--input",
+                "-",
             ]
-            stdout, stderr = run_gh_command(args)
+            stdout, stderr = run_gh_command(args, input_data=json.dumps(payload))
 
             if stdout and not stderr:
                 console.print(
@@ -163,9 +166,6 @@ def upload_directory(dir_path: Path, owner: str, repo_name: str) -> None:
             relative_path = local_path.relative_to(dir_path)
             repo_path = f"files/{dir_path.name}/{relative_path}"
 
-            # upload_file 함수를 호출하되, base_repo_path를 수정하여 호출
-            # upload_file(local_path, owner, repo_name, base_repo_path=f"files/{dir_path.name}")
-
             try:
                 with open(local_path, "rb") as f:
                     content_bytes = f.read()
@@ -180,19 +180,23 @@ def upload_directory(dir_path: Path, owner: str, repo_name: str) -> None:
                         description=f"[cyan]파일 업로드 중: {local_path.name}[/]", total=None
                     )
 
+                    # JSON 페이로드 생성
+                    payload = {
+                        "message": f"Add file: {local_path.name}",
+                        "content": content_base64,
+                        "branch": "main",
+                    }
+
                     args = [
                         "api",
                         f"/repos/{owner}/{repo_name}/contents/{repo_path}",
                         "--method",
                         "PUT",
-                        "-f",
-                        f"message=Add file: {local_path.name}",
-                        "-f",
-                        f"content={content_base64}",
-                        "-f",
-                        "branch=main",
+                        "--input",
+                        "-",
                     ]
-                    stdout, stderr = run_gh_command(args)
+
+                    stdout, stderr = run_gh_command(args, input_data=json.dumps(payload))
 
                     if stdout and not stderr:
                         console.print(
