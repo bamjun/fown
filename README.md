@@ -10,11 +10,12 @@ GitHub CLI를 활용하여 GitHub 레이블과 프로젝트를 자동화하는 �
   - [아카이브 레포지토리 생성](#아카이브-레포지토리-생성)
   - [레이블 동기화](#레이블-동기화)
   - [스크립트 관리](#스크립트-관리)
+  - [파일 관리](#파일-관리)
 - [요구사항](#요구사항)
 - [문서](#문서)
 - [라이선스](#라이선스)
 
-## 설치 방법
+<h2 id="설치-방법">설치 방법</h2>  
 
 ### uv를 통한 설치
 ```bash
@@ -30,7 +31,7 @@ uvx fown labels apply
 pip install fown
 ```
 
-## 기능
+<h2 id="기능">기능</h2>
 
 - GitHub 레이블 생성, 업데이트, 동기화
 - GitHub 프로젝트 자동 관리
@@ -38,9 +39,10 @@ pip install fown
 - 빠르고 간단한 설정
 - GitHub CLI (`gh`) 기반 동작
 
-## 사용 방법
+<h2 id="사용-방법">사용 방법</h2>
 
-### 아카이브 레포지토리 생성
+<h3 id="아카이브-레포지토리-생성">아카이브 레포지토리 생성</h3>  
+
 ```bash
 # 기본: private 레포지토리 생성
 fown make-fown-archive
@@ -49,7 +51,8 @@ fown make-fown-archive
 fown make-fown-archive --public
 ```
 
-### 레이블 동기화
+<h3 id="레이블-동기화">레이블 동기화</h3>  
+
 ```bash
 # 기본 레이블로 동기화
 fown labels sync
@@ -58,7 +61,8 @@ fown labels sync
 fown labels sync --archive
 ```
 
-### 스크립트 관리
+<h3 id="스크립트-관리">스크립트 관리</h3>  
+
 ```bash
 # 스크립트 실행
 fown script use
@@ -66,11 +70,28 @@ fown script use
 # 스크립트 추가 (.sh 파일만 지원)
 fown script add <script-file.sh>
 
+# 스크립트 다운로드
+fown script load
+
 # 스크립트 삭제
 fown script delete
 ```
 
-## 요구사항
+<h3 id="파일-관리">파일 관리<h3>  
+
+```bash
+# 파일 추가
+fown file add <파일이름 or 폴더이름>
+
+# 파일 다운로드
+fown file load
+
+# 파일 삭제
+fown file delete
+```
+
+
+<h2 id="요구사항">요구사항</h2>  
 
 - Python 3.8 이상
 - GitHub CLI (`gh`) 설치 및 인증 필요
@@ -78,12 +99,12 @@ fown script delete
 GitHub CLI 설치 방법:  
 https://cli.github.com/
 
-## 문서
+<h2 id="문서">문서</h2>  
 
 - [테스트 서버 PyPI](https://test.pypi.org/project/fown/)
 - [메인 서버 PyPI](https://pypi.org/project/fown/)
 - [GitHub](https://github.com/bamjun/fown)
 
-## 라이선스
+<h2 id="라이선스">라이선스</h2>  
 
 MIT License
