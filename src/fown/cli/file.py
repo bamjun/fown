@@ -254,7 +254,16 @@ def navigate_and_download(owner: str, repo_name: str, current_path: str):
         elif choice.isdigit() and 1 <= int(choice) <= len(items):
             selected_item = items[int(choice) - 1]
             if selected_item["type"] == "dir":
-                navigate_and_download(owner, repo_name, selected_item["path"])
+                action = Prompt.ask(
+                    f"'{selected_item['name']}'은(는) 디렉토리입니다. 전체 다운로드하시겠습니까?",
+                    choices=["y", "n"],
+                    default="y",
+                )
+                if action == "y":
+                    download_directory(owner, repo_name, selected_item["path"])
+                    break
+                else:
+                    navigate_and_download(owner, repo_name, selected_item["path"])
             else:
                 download_item(owner, repo_name, selected_item)
                 break  # 다운로드 후 종료
