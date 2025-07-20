@@ -24,6 +24,7 @@ PyYAML = "^6.0"
 rich = "^13.7.0"
 rich-click = "^1.7.2"
 textual = "^0.52.1"
+requests = "^2.31.0"
 
 
 [tool.poetry.group.dev.dependencies]
@@ -31,6 +32,7 @@ ruff = "^0.11.13"
 mypy = "^1.16.0"
 types-pyyaml = "^6.0.12.20250516"
 pre-commit = "^4.2.0"
+types-requests = "^2.31.0"
 
 [build-system]
 requires = ["poetry-core"]
