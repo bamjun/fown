@@ -7,11 +7,13 @@ import re
 import subprocess
 from typing import Dict, List, Optional, Tuple, Union
 
-import click
+import requests
 import yaml
 from rich.console import Console
 from rich.panel import Panel
 from rich.theme import Theme
+
+from fown.cli.auth import load_token
 
 # Rich 설정
 theme = Theme(
@@ -25,21 +27,48 @@ theme = Theme(
 console = Console(theme=theme)
 
 
-def check_gh_installed() -> None:
-    """GitHub CLI가 설치되어 있는지 확인"""
-    try:
-        subprocess.run(
-            ["gh", "--version"], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
-        )
-    except Exception:
-        console.print(
-            Panel(
-                "[error]GitHub CLI(gh)가 설치되어 있지 않습니다.[/]",
-                title="오류",
-                subtitle="설치 후 다시 시도하세요. site: https://cli.github.com/",
-            )
-        )
+def make_github_api_request(
+    method: str,
+    endpoint: str,
+    data: Optional[Dict] = None,
+    params: Optional[Dict] = None,
+    check_status: bool = True,
+) -> Union[Dict, List, None]:
+    """GitHub API에 인증된 요청을 보냅니다."""
+    token = load_token()
+    if not token:
+        console.print("[error]로그인이 필요합니다. 'fown login start'를 실행하세요.[/]")
         raise SystemExit(1)
+
+    headers = {
+        "Authorization": f"token {token}",
+        "Accept": "application/vnd.github.v3+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+    url = f"https://api.github.com/{endpoint}"
+
+    try:
+        response = requests.request(method, url, headers=headers, json=data, params=params)
+        if check_status:
+            response.raise_for_status()
+
+        if response.status_code == 204:  # No Content
+            return None
+
+        return response.json()
+    except requests.exceptions.HTTPError as e:
+        if e.response.status_code == 401:
+            console.print(
+                "[error]인증 실패. 토큰이 유효하지 않거나 만료되었습니다. 'fown login start'로 다시 로그인하세요.[/]"
+            )
+        elif e.response.status_code == 404:
+            console.print(f"[error]찾을 수 없음: {url}[/]")
+        else:
+            console.print(f"[error]API 요청 실패 ({e.response.status_code}): {e.response.text}[/]")
+        raise SystemExit(1) from e
+    except requests.exceptions.RequestException as e:
+        console.print(f"[error]네트워크 오류: {e}[/]")
+        raise SystemExit(1) from e
 
 
 def load_yaml(file_path: str) -> Union[List, Dict, None]:
@@ -84,37 +113,3 @@ def extract_repo_info(repo_url: str) -> Tuple[str, str]:
             "[error]올바른 GitHub repo URL 형식이 아닙니다.[/]", "예: https://github.com/OWNER/REPO"
         )
         raise SystemExit(1)
-
-
-def run_gh_command(
-    args: List[str], check: bool = True, input_data: Optional[Union[str, bytes]] = None
-) -> Tuple[Optional[str], Optional[str]]:
-    """GitHub CLI 명령 실행 및 결과 반환"""
-    try:
-        # 입력 데이터가 문자열이면 바이트로 인코딩
-        if isinstance(input_data, str):
-            input_bytes: Optional[bytes] = input_data.encode("utf-8")
-        else:
-            input_bytes = input_data
-
-        result = subprocess.run(
-            ["gh"] + args,
-            check=check,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            input=input_bytes,
-        )
-
-        stdout = result.stdout
-        stderr = result.stderr
-
-        # 바이너리 출력을 UTF-8로 디코딩 (errors='replace'로 잘못된 바이트 처리)
-        stdout_text = stdout.decode("utf-8", errors="replace").strip() if stdout else None
-        stderr_text = stderr.decode("utf-8", errors="replace").strip() if stderr else None
-
-        return stdout_text, stderr_text
-    except subprocess.CalledProcessError as e:
-        if e.stderr:
-            stderr_text = e.stderr.decode("utf-8", errors="replace")
-            console.print(f"[error]명령 실행 실패:[/] {stderr_text}")
-        raise

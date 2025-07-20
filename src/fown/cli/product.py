@@ -10,7 +10,7 @@ from rich.panel import Panel
 
 from fown.core.models.config import Config, Repository
 from fown.core.services.github import ProjectService
-from fown.core.utils.file_io import check_gh_installed, console, get_git_repo_url
+from fown.core.utils.file_io import console, get_git_repo_url
 
 
 @click.group(name="projects")
@@ -42,8 +42,6 @@ def sync_projects(repo_url: str, config_file: str):
     YAML 파일에 정의된 프로젝트를 GitHub 레포지토리에 생성합니다.
     프로젝트가 이미 존재하면 건너뜁니다.
     """
-    check_gh_installed()
-
     # 저장소 정보 가져오기
     repo = Repository.from_url(repo_url)
 
