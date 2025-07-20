@@ -1,18 +1,37 @@
 """
-GitHub CLI 서비스 로직 구현
+GitHub API 서비스 로직 구현
 """
 
-import json
 from typing import Dict, List, Optional
 
-import click
-from rich.console import Console
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.table import Table
 
-from fown.core.models.config import Label, Project, Repository
-from fown.core.utils.file_io import console, run_gh_command
+from fown.core.models.config import Label, Project
+from fown.core.utils.file_io import console, make_github_api_request
+
+
+def get_github_username() -> Optional[str]:
+    """GitHub 사용자 이름 가져오기"""
+    try:
+        user_data = make_github_api_request("GET", "user")
+        # 명시적 타입 체크 추가
+        if isinstance(user_data, dict):
+            return user_data.get("login")
+        return None
+    except SystemExit:
+        return None
+
+
+def get_user_repositories() -> List[Dict]:
+    """사용자의 모든 저장소 가져오기"""
+    try:
+        repos = make_github_api_request("GET", "user/repos", params={"per_page": 100})
+        # 명시적 타입 체크 추가
+        return repos if isinstance(repos, list) else []
+    except SystemExit:
+        return []
 
 
 class LabelService:
@@ -22,18 +41,13 @@ class LabelService:
     def create_label(label: Label, repo_name: str) -> bool:
         """레이블 생성"""
         try:
-            args = [
-                "label",
-                "create",
-                label.name,
-                "--color",
-                label.color,
-                "--description",
-                label.description,
-                "--repo",
-                repo_name,
-            ]
-            run_gh_command(args)
+            endpoint = f"repos/{repo_name}/labels"
+            data = {
+                "name": label.name,
+                "color": label.color.lstrip("#"),
+                "description": label.description,
+            }
+            make_github_api_request("POST", endpoint, data=data)
             console.print(f"[success]✓[/] Created label: [bold]{label.name}[/]")
             return True
         except Exception:
@@ -50,22 +64,13 @@ class LabelService:
                 SpinnerColumn(), TextColumn("[info]레이블 목록 가져오는 중...[/]"), transient=True
             ) as progress:
                 progress.add_task("", total=None)
-                args = [
-                    "label",
-                    "list",
-                    "--repo",
-                    repo_name,
-                    "--json",
-                    "name,color,description",
-                    "--limit",
-                    "1000",
-                ]
-                stdout, _ = run_gh_command(args)
+                endpoint = f"repos/{repo_name}/labels"
+                labels_data = make_github_api_request("GET", endpoint, params={"per_page": 100})
 
-            if not stdout:
+            # 명시적 타입 체크 추가
+            if not isinstance(labels_data, list):
                 return []
 
-            labels_data = json.loads(stdout)
             return [Label.from_dict(item) for item in labels_data]
         except Exception as e:
             console.print(f"[error]레이블 목록 가져오기 실패:[/] {str(e)}")
@@ -75,8 +80,8 @@ class LabelService:
     def delete_label(label_name: str, repo_name: str) -> bool:
         """레이블 삭제"""
         try:
-            args = ["label", "delete", label_name, "--repo", repo_name, "--yes"]
-            run_gh_command(args)
+            endpoint = f"repos/{repo_name}/labels/{label_name}"
+            make_github_api_request("DELETE", endpoint)
             console.print(f"[success]✓[/] Deleted label: [bold]{label_name}[/]")
             return True
         except Exception as e:
@@ -123,13 +128,14 @@ class ProjectService:
                 SpinnerColumn(), TextColumn("[info]프로젝트 목록 가져오는 중...[/]"), transient=True
             ) as progress:
                 progress.add_task("", total=None)
-                args = ["project", "list", "--repo", repo_name, "--json", "name,description"]
-                stdout, _ = run_gh_command(args)
+                owner, _ = repo_name.split("/")
+                endpoint = f"users/{owner}/projects"
+                projects_data = make_github_api_request("GET", endpoint, params={"per_page": 100})
 
-            if not stdout:
+            # 명시적 타입 체크 추가
+            if not isinstance(projects_data, list):
                 return []
 
-            projects_data = json.loads(stdout)
             return [Project.from_dict(item) for item in projects_data]
         except Exception as e:
             console.print(f"[error]프로젝트 목록 가져오기 실패:[/] {str(e)}")
@@ -139,16 +145,10 @@ class ProjectService:
     def create_project(project: Project, repo_name: str) -> bool:
         """프로젝트 생성"""
         try:
-            args = [
-                "project",
-                "create",
-                project.name,
-                "--description",
-                project.description,
-                "--repo",
-                repo_name,
-            ]
-            run_gh_command(args)
+            owner, _ = repo_name.split("/")
+            endpoint = f"users/{owner}/projects"
+            data = {"name": project.name, "body": project.description}
+            make_github_api_request("POST", endpoint, data=data)
             console.print(f"[success]✓[/] Created project: [bold]{project.name}[/]")
             return True
         except Exception:
@@ -164,7 +164,6 @@ class ProjectService:
         created = 0
         skipped = 0
 
-        # 결과 테이블 생성
         table = Table(title="프로젝트 동기화 결과")
         table.add_column("프로젝트", style="cyan")
         table.add_column("상태", style="green")
