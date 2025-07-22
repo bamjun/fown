@@ -6,7 +6,7 @@ import rich_click as click
 
 from fown import __version__
 from fown.cli.archive import make_archive
-from fown.cli.auth import login
+from fown.cli.auth import auth
 from fown.cli.file import file_group
 from fown.cli.label import labels_group
 from fown.cli.product import projects_group
@@ -48,7 +48,7 @@ main.add_command(labels_group)
 main.add_command(projects_group)
 main.add_command(script_group)
 main.add_command(file_group)
-main.add_command(login)
+main.add_command(auth)
 
 
 if __name__ == "__main__":
