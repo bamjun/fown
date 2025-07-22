@@ -67,7 +67,7 @@ def get_login_status():
     """Checks if the user is logged in and the token is valid."""
     token = load_token()
     if not token:
-        return None, "Not logged in. Please run 'fown login'."
+        return None, "Not logged in. Please run 'fown auth login'."
 
     headers = {"Authorization": f"token {token}"}
     try:
@@ -83,7 +83,7 @@ def get_login_status():
 
 @click.group(invoke_without_command=True)
 @click.pass_context
-def login(ctx):
+def auth(ctx):
     """
     Authenticate with GitHub.
 
@@ -94,7 +94,7 @@ def login(ctx):
         click.echo(message)
 
 
-@login.command(name="start")
+@auth.command(name="start")
 def start_login():
     """Start the GitHub device login flow."""
     token = load_token()
@@ -167,13 +167,13 @@ def start_login():
     click.echo("\nLogin timed out. Please try again.", err=True)
 
 
-@login.command(name="logout")
+@auth.command(name="logout")
 def logout():
     """Log out from GitHub and remove the stored token."""
     remove_token()
 
 
-@login.command(name="status")
+@auth.command(name="status")
 def login_status():
     """Check GitHub authentication status."""
     _, message = get_login_status()
