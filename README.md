@@ -5,19 +5,21 @@ GitHub CLI를 활용하여 GitHub 레이블과 프로젝트를 자동화하는 �
 
 ## 목차
 - [설치 방법](#설치-방법)
-- [기능](#기능)
 - [사용 방법](#사용-방법)
   - [아카이브 레포지토리 생성](#아카이브-레포지토리-생성)
   - [레이블 동기화](#레이블-동기화)
   - [스크립트 관리](#스크립트-관리)
   - [파일 관리](#파일-관리)
+- [기능](#기능)
+  - [auth](#auth)
+  - [make-fown-archive](#make-fown-archive)
 - [요구사항](#요구사항)
 - [문서](#문서)
 - [라이선스](#라이선스)
 
 <h2 id="설치-방법">설치 방법</h2>  
 
-### uv를 통한 설치
+### uvx를 이용한 사용방법
 ```bash
 # 모든 레이블 삭제
 uvx fown labels clear-all
@@ -30,14 +32,6 @@ uvx fown labels apply
 ```bash
 pip install fown
 ```
-
-<h2 id="기능">기능</h2>
-
-- GitHub 레이블 생성, 업데이트, 동기화
-- GitHub 프로젝트 자동 관리
-- 설정 파일을 통한 일괄 작업
-- 빠르고 간단한 설정
-- GitHub CLI (`gh`) 기반 동작
 
 <h2 id="사용-방법">사용 방법</h2>
 
@@ -91,13 +85,56 @@ fown file delete
 ```
 
 
+<h2 id="기능">기능</h2>
+
+- GitHub 레이블 생성, 업데이트, 동기화
+- GitHub 프로젝트 자동 관리
+- 설정 파일을 통한 일괄 작업
+- 빠르고 간단한 설정
+- GitHub CLI (`gh`) 기반 동작
+
+<h3 id="auth">auth</h3>
+
+- GitHub 인증
+
+---
+
+- Github login
+
+```bash
+# Github 로그인
+fown auth login
+```
+
+- Github logout
+
+```bash
+# Github 로그아웃
+fown auth logout
+```
+
+- 인증 상태
+  
+```bash
+# 로그인 상태
+fown auth status
+```
+
+<h3 id="make-fown-archive">make-fown-archive</h3>
+
+- 로그인한 유저의 깃허브 레포지토리에 기본 레포지토리 생성
+  
+---
+
+```bash
+# 기본 레포지토리 생성
+fown make-fown-archive
+```
+
+
 <h2 id="요구사항">요구사항</h2>  
 
-- Python 3.8 이상
-- GitHub CLI (`gh`) 설치 및 인증 필요
-
-GitHub CLI 설치 방법:  
-https://cli.github.com/
+- Python 3.12 이상
 
 <h2 id="문서">문서</h2>  
 
