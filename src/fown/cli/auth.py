@@ -94,7 +94,7 @@ def auth(ctx):
         click.echo(message)
 
 
-@auth.command(name="start")
+@auth.command(name="login")
 def start_login():
     """Start the GitHub device login flow."""
     token = load_token()
