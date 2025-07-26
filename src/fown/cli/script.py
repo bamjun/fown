@@ -10,7 +10,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple
 
 import rich_click as click
 import yaml
@@ -107,21 +107,6 @@ def get_script_file_content(repo_name: str, owner: str, file_path: str) -> Optio
         return None
 
 
-def show_script_files_menu(files: List[Dict], repo_name: str, owner: str) -> Optional[str]:
-    """Display a menu to select a script file."""
-    if not files:
-        console.print("[warning]사용 가능한 스크립트 파일이 없습니다.[/]")
-        return None
-
-    for i, file in enumerate(files, 1):
-        console.print(f"{i}. {file['name']}")
-    choice = Prompt.ask(
-        "Select a file by number", choices=[str(i) for i in range(1, len(files) + 1)]
-    )
-    selected_file = files[int(choice) - 1]
-    return get_script_file_content(repo_name, owner, selected_file["path"])
-
-
 def run_script(script_path: str):
     """Executes a script file."""
     console.print(f"[info]Executing script: {script_path}[/]")
@@ -150,6 +135,120 @@ def run_script(script_path: str):
             os.unlink(script_path)
 
 
+def _display_paginated_menu(
+    items: List[Dict],
+    current_page: int,
+    total_pages: int,
+    border_style: str = "cyan",
+    title_prefix: str = "",
+    columns: Optional[List[Dict[str, str]]] = None,
+) -> Table:
+    """공통 페이지네이션 메뉴 표시 함수"""
+    console.clear()
+    console.print(
+        Panel(
+            f"{title_prefix}스크립트 목록 (페이지 {current_page}/{total_pages})",
+            border_style=border_style,
+        )
+    )
+
+    # 기본 컬럼 설정
+    if columns is None:
+        columns = [
+            {"name": "#", "style": "cyan"},
+            {"name": "파일명", "style": "green"},
+            {"name": "타입", "style": "yellow"},
+        ]
+
+    # 테이블 생성
+    table = Table(show_header=True)
+    for col in columns:
+        table.add_column(col["name"], style=col.get("style", ""))
+
+    for i, item in enumerate(items, 1):
+        row = [str(i)]
+        row.extend(
+            [
+                item.get(col["name"].lower(), "")
+                if col["name"].lower() != "타입"
+                else os.path.splitext(item.get("name", ""))[1]
+                for col in columns[1:]
+            ]
+        )
+        table.add_row(*row)
+
+    console.print(table)
+    return table
+
+
+def _handle_script_pagination_menu(
+    files: List[Dict],
+    repo_name: str,
+    owner: str,
+    action_func: Callable[[str], None],
+    page_size: int = 5,
+    columns: Optional[List[Dict[str, str]]] = None,
+) -> None:
+    """공통 스크립트 페이지네이션 처리 함수"""
+    current_page = 1
+
+    while True:
+        # 페이지네이션 계산
+        total_pages = (len(files) + page_size - 1) // page_size
+        start_index = (current_page - 1) * page_size
+        end_index = start_index + page_size
+        page_files = files[start_index:end_index]
+
+        # 메뉴 표시
+        _display_paginated_menu(
+            page_files,
+            current_page,
+            total_pages,
+            border_style="cyan",
+            title_prefix="",
+            columns=columns,
+        )
+
+        # 명령어 안내
+        console.print("\n[bold]명령어:[/]")
+        if total_pages > 1:
+            console.print(f" 1-{len(page_files)}: 스크립트 선택")
+            console.print(" n: 다음 페이지")
+            console.print(" p: 이전 페이지")
+        else:
+            console.print(f" 1-{len(page_files)}: 스크립트 선택")
+        console.print(" q: 종료")
+
+        # 사용자 선택 처리
+        choice = Prompt.ask("선택").strip().lower()
+
+        # 종료 처리
+        if choice == "q":
+            break
+
+        # 페이지 이동 처리
+        if choice == "n" and current_page < total_pages:
+            current_page += 1
+            continue
+        elif choice == "p" and current_page > 1:
+            current_page -= 1
+            continue
+
+        # 선택 검증
+        try:
+            index = int(choice)
+            if 1 <= index <= len(page_files):
+                selected_file = page_files[index - 1]
+                script_path_temp = get_script_file_content(repo_name, owner, selected_file["path"])
+                if script_path_temp:
+                    action_func(script_path_temp)
+                    break
+            else:
+                console.print("[warning]잘못된 선택입니다.[/warning]")
+        except ValueError:
+            console.print("[warning]숫자를 입력해주세요.[/warning]")
+
+
 @script_group.command(name="use")
 def use_script():
     """Execute a script from the archive repository."""
@@ -163,9 +262,9 @@ def use_script():
         console.print("[warning]No scripts found in the archive.[/warning]")
         return
 
-    script_path = show_script_files_menu(files, repo_name, owner)
-    if script_path:
-        run_script(script_path)
+    _handle_script_pagination_menu(
+        files=files, repo_name=repo_name, owner=owner, action_func=run_script
+    )
 
 
 @script_group.command(name="add")
@@ -255,9 +354,13 @@ def load_script():
         console.print("[warning]No scripts found to load.[/warning]")
         return
 
-    script_path_temp = show_script_files_menu(files, repo_name, owner)
-    if script_path_temp:
+    def download_action(script_path_temp: str):
+        """다운로드 액션 함수"""
         dest_path = Path.cwd() / Path(script_path_temp).name
         # move the file
         shutil.move(script_path_temp, dest_path)
         console.print(f"[success]Script downloaded to {dest_path}[/success]")
+
+    _handle_script_pagination_menu(
+        files=files, repo_name=repo_name, owner=owner, action_func=download_action
+    )
