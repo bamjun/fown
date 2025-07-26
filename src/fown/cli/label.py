@@ -151,11 +151,9 @@ def _display_paginated_menu(
             [
                 item.get("name", "")
                 if col["name"].lower() == "파일명"
-                else (
-                    os.path.splitext(item.get("name", ""))[1]
-                    if col["name"].lower() == "타입"
-                    else item.get(col["name"].lower(), "")
-                )
+                else os.path.splitext(item.get("name", ""))[1]
+                if col["name"].lower() == "타입"
+                else item.get(col["name"].lower(), "")
                 for col in columns[1:]
             ]
         )

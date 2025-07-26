@@ -256,7 +256,16 @@ def _display_paginated_menu(
 
     for i, item in enumerate(items, 1):
         row = [str(i)]
-        row.extend([item.get(col["name"].lower(), "") for col in columns[1:]])
+        row.extend(
+            [
+                item.get("name", "")
+                if col["name"].lower() == "이름"
+                else item.get("type", "")
+                if col["name"].lower() == "타입"
+                else item.get(col["name"].lower(), "")
+                for col in columns[1:]
+            ]
+        )
         table.add_row(*row)
 
     console.print(table)
