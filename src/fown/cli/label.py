@@ -104,22 +104,6 @@ def get_label_file_content(repo_name: str, owner: str, file_path: str) -> Option
         return None
 
 
-def show_label_files_menu(files: List[Dict], repo_name: str, owner: str) -> Optional[str]:
-    """Display a menu to select a label file."""
-    if not files:
-        console.print("[warning]사용 가능한 레이블 파일이 없습니다.[/]")
-        return None
-
-    # Simple prompt for now, can be expanded later if needed.
-    for i, file in enumerate(files, 1):
-        console.print(f"{i}. {file['name']}")
-    choice = Prompt.ask(
-        "Select a file by number", choices=[str(i) for i in range(1, len(files) + 1)]
-    )
-    selected_file = files[int(choice) - 1]
-    return get_label_file_content(repo_name, owner, selected_file["path"])
-
-
 def load_labels_from_json(file_path: str) -> List[Label]:
     """Load labels from a JSON file."""
     try:
@@ -131,17 +115,145 @@ def load_labels_from_json(file_path: str) -> List[Label]:
         return []
 
 
+def _display_paginated_menu(
+    items: List[Dict],
+    current_page: int,
+    total_pages: int,
+    border_style: str = "cyan",
+    title_prefix: str = "",
+    columns: Optional[List[Dict[str, str]]] = None,
+) -> Table:
+    """공통 페이지네이션 메뉴 표시 함수"""
+    console.clear()
+    console.print(
+        Panel(
+            f"{title_prefix}레이블 파일 목록 (페이지 {current_page}/{total_pages})",
+            border_style=border_style,
+        )
+    )
+
+    # 기본 컬럼 설정
+    if columns is None:
+        columns = [
+            {"name": "#", "style": "cyan"},
+            {"name": "파일명", "style": "green"},
+            {"name": "타입", "style": "yellow"},
+        ]
+
+    # 테이블 생성
+    table = Table(show_header=True)
+    for col in columns:
+        table.add_column(col["name"], style=col.get("style", ""))
+
+    for i, item in enumerate(items, 1):
+        row = [str(i)]
+        row.extend(
+            [
+                item.get("name", "")
+                if col["name"].lower() == "파일명"
+                else (
+                    os.path.splitext(item.get("name", ""))[1]
+                    if col["name"].lower() == "타입"
+                    else item.get(col["name"].lower(), "")
+                )
+                for col in columns[1:]
+            ]
+        )
+        table.add_row(*row)
+
+    console.print(table)
+    return table
+
+
+def _handle_pagination_menu(
+    files: List[Dict],
+    repo_name: str,
+    owner: str,
+    page_size: int = 5,
+    columns: Optional[List[Dict[str, str]]] = None,
+) -> Optional[str]:
+    """공통 페이지네이션 처리 함수"""
+    current_page = 1
+
+    while True:
+        # 페이지네이션 계산
+        total_pages = (len(files) + page_size - 1) // page_size
+        start_index = (current_page - 1) * page_size
+        end_index = start_index + page_size
+        page_files = files[start_index:end_index]
+
+        # 메뉴 표시
+        _display_paginated_menu(
+            page_files,
+            current_page,
+            total_pages,
+            border_style="cyan",
+            title_prefix="",
+            columns=columns,
+        )
+
+        # 명령어 안내
+        console.print("\n[bold]명령어:[/]")
+        if total_pages > 1:
+            console.print(f" 1-{len(page_files)}: 레이블 파일 선택")
+            console.print(" n: 다음 페이지")
+            console.print(" p: 이전 페이지")
+        else:
+            console.print(f" 1-{len(page_files)}: 레이블 파일 선택")
+        console.print(" q: 종료")
+
+        # 사용자 선택 처리
+        choice = Prompt.ask("선택").strip().lower()
+
+        # 종료 처리
+        if choice == "q":
+            return None
+
+        # 페이지 이동 처리
+        if choice == "n" and current_page < total_pages:
+            current_page += 1
+            continue
+        elif choice == "p" and current_page > 1:
+            current_page -= 1
+            continue
+
+        # 선택 검증
+        try:
+            index = int(choice)
+            if 1 <= index <= len(page_files):
+                selected_file = page_files[index - 1]
+                return get_label_file_content(repo_name, owner, selected_file["path"])
+            else:
+                console.print("[warning]잘못된 선택입니다.[/warning]")
+        except ValueError:
+            console.print("[warning]숫자를 입력해주세요.[/warning]")
+
+
 def load_labels_from_archive(
     repo_name: str, owner: str, show_menu: bool = False
 ) -> Tuple[List[Label], Optional[str]]:
     """Load labels from an archive repository."""
-    temp_file_path = None
-    labels = []
-    files = list_archive_label_files(repo_name, owner)
+    labels: List[Label] = []
+    temp_file_path: Optional[str] = None
 
-    if show_menu and files:
-        temp_file_path = show_label_files_menu(files, repo_name, owner)
-    elif files:  # Load the first available file if menu not requested
+    files = list_archive_label_files(repo_name, owner)
+    if not files:
+        console.print("[warning]No label files found in the archive.[/warning]")
+        return labels, temp_file_path
+
+    if show_menu:
+        temp_file_path = _handle_pagination_menu(
+            files,
+            repo_name,
+            owner,
+            columns=[
+                {"name": "#", "style": "cyan"},
+                {"name": "파일명", "style": "green"},
+                {"name": "타입", "style": "yellow"},
+            ],
+        )
+    else:
+        # 첫 번째 파일 사용
         temp_file_path = get_label_file_content(repo_name, owner, files[0]["path"])
 
     if temp_file_path:
@@ -183,7 +295,10 @@ def sync_labels(repo_url: Optional[str], labels_file: Optional[str], archive: bo
     else:
         found, repo_name, owner = find_default_archive_repo()
         if found and repo_name and owner:
+            # show_menu 파라미터를 archive 옵션과 연결
             labels, temp_file_path = load_labels_from_archive(repo_name, owner, show_menu=archive)
+
+        # 아카이브에서 레이블을 찾지 못했거나 아카이브 옵션이 없는 경우 기본 레이블 사용
         if not labels:
             console.print("[warning]No labels found in archive, using default.[/warning]")
             default_path = Path(__file__).parent.parent / "data/default_config.yml"
@@ -203,6 +318,7 @@ def sync_labels(repo_url: Optional[str], labels_file: Optional[str], archive: bo
         Panel(f"[success]{success_count}/{len(labels)} labels synced.[/]", title="Complete")
     )
 
+    # 임시 파일 정리
     if temp_file_path:
         os.unlink(temp_file_path)
 
