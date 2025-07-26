@@ -6,7 +6,7 @@ import base64
 import json
 import os
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Literal, Optional, Tuple, Union
 
 import rich_click as click
 import yaml
@@ -170,27 +170,6 @@ def load_file():
     navigate_and_download(owner, repo_name, "files")
 
 
-def _display_download_menu(items: List[Dict]) -> None:
-    """다운로드 메뉴를 표시합니다."""
-    console.clear()
-    console.print(Panel("파일/폴더 선택", border_style="cyan"))
-
-    table = Table(show_header=True)
-    table.add_column("#", style="cyan")
-    table.add_column("이름", style="green")
-    table.add_column("타입", style="yellow")
-
-    for i, item in enumerate(items, 1):
-        table.add_row(str(i), item["name"], item["type"])
-
-    console.print(table)
-
-    console.print("\n[bold]명령어:[/]")
-    console.print(" 번호: 파일/폴더 선택")
-    console.print(" b: 뒤로가기")
-    console.print(" q: 종료")
-
-
 def _handle_directory_download(owner: str, repo_name: str, selected_item: Dict) -> Optional[str]:
     """디렉토리 다운로드를 처리합니다."""
     action = Prompt.ask(
@@ -244,43 +223,164 @@ def _process_download_selection(
         return None  # 다운로드 후 종료
 
 
-def navigate_and_download(owner: str, repo_name: str, current_path: str):
-    """파일/폴더를 탐색하고 다운로드/뒤로가기 옵션을 제공합니다."""
+def _display_paginated_menu(
+    items: List[Dict],
+    current_path: str,
+    current_page: int,
+    total_pages: int,
+    border_style: str = "cyan",
+    title_prefix: str = "",
+    columns: Optional[List[Dict[str, str]]] = None,
+) -> Table:
+    """공통 페이지네이션 메뉴 표시 함수"""
+    console.clear()
+    console.print(
+        Panel(
+            f"{title_prefix}[bold]{current_path}[/] 경로의 내용 (페이지 {current_page}/{total_pages})",
+            border_style=border_style,
+        )
+    )
+
+    # 기본 컬럼 설정
+    if columns is None:
+        columns = [
+            {"name": "#", "style": "cyan"},
+            {"name": "이름", "style": "green"},
+            {"name": "타입", "style": "yellow"},
+        ]
+
+    # 테이블 생성
+    table = Table(show_header=True)
+    for col in columns:
+        table.add_column(col["name"], style=col.get("style", ""))
+
+    for i, item in enumerate(items, 1):
+        row = [str(i)]
+        row.extend([item.get(col["name"].lower(), "") for col in columns[1:]])
+        table.add_row(*row)
+
+    console.print(table)
+    return table
+
+
+def _validate_page_choice(
+    choice: str, page_files: List[Dict], current_page: int, total_pages: int
+) -> Optional[Union[Literal["back", "next", "prev", "retry"], int]]:
+    """페이지 선택을 검증하고 처리합니다."""
+    # 종료 처리
+    if choice == "q":
+        return None
+
+    # 뒤로가기 처리
+    if choice == "b":
+        return "back"
+
+    # 페이지 이동 처리
+    if choice == "n" and current_page < total_pages:
+        return "next"
+    elif choice == "p" and current_page > 1:
+        return "prev"
+
+    # 항목 선택 처리
+    try:
+        index = int(choice)
+        if 1 <= index <= len(page_files):
+            return index
+        console.print("[warning]잘못된 선택입니다.[/warning]")
+    except ValueError:
+        console.print("[warning]숫자를 입력해주세요.[/warning]")
+
+    return "retry"
+
+
+def _handle_pagination_menu(
+    files: List[Dict],
+    process_selection_func: Callable,
+    repo_name: str,
+    owner: str,
+    current_path: str,
+    page_size: int = 5,
+    border_style: str = "cyan",
+    title_prefix: str = "",
+    columns: Optional[List[Dict[str, str]]] = None,
+) -> Optional[str]:
+    """공통 페이지네이션 처리 함수"""
+    current_page = 1
+
     while True:
-        # 파일/폴더 목록 가져오기
-        items = list_archive_files(repo_name, owner, current_path)
-        if not items:
-            console.print("[warning]파일이나 폴더가 없습니다.[/]")
-            return
+        # 페이지네이션 계산
+        total_pages = (len(files) + page_size - 1) // page_size
+        start_index = (current_page - 1) * page_size
+        end_index = start_index + page_size
+        page_files = files[start_index:end_index]
 
         # 메뉴 표시
-        _display_download_menu(items)
+        _display_paginated_menu(
+            page_files, current_path, current_page, total_pages, border_style, title_prefix, columns
+        )
+
+        # 명령어 안내
+        console.print("\n[bold]명령어:[/]")
+        if total_pages > 1:
+            console.print(f" 1-{len(page_files)}: 항목 선택")
+            console.print(" n: 다음 페이지")
+            console.print(" p: 이전 페이지")
+        else:
+            console.print(f" 1-{len(page_files)}: 항목 선택")
+        console.print(" b: 뒤로가기")
+        console.print(" q: 종료")
 
         # 사용자 선택 처리
         choice = Prompt.ask("선택").strip().lower()
 
-        # 종료 및 뒤로가기 처리
-        if choice == "q":
-            break
-        elif choice == "b":
+        # 선택 검증 및 처리
+        validation_result = _validate_page_choice(choice, page_files, current_page, total_pages)
+
+        # 결과에 따른 처리
+        if validation_result is None:
+            return None
+        elif validation_result == "back":
             if current_path == "files":
-                break
-            current_path = str(Path(current_path).parent)
+                return None
+            return str(Path(current_path).parent)
+        elif validation_result == "next":
+            current_page += 1
+            continue
+        elif validation_result == "prev":
+            current_page -= 1
+            continue
+        elif validation_result == "retry":
             continue
 
-        # 선택 검증
-        index = _validate_user_choice(choice, len(items))
-        if index is None:
-            continue
+        # 항목 선택 처리 (validation_result는 이제 확실히 int)
+        selected_item = page_files[validation_result - 1]
+        result = process_selection_func(owner, repo_name, current_path, selected_item)
 
-        # 선택된 항목 처리
-        selected_item = items[index - 1]
-        next_path = _process_download_selection(owner, repo_name, current_path, selected_item)
+        # 결과에 따른 처리
+        if result is None:
+            return None
+        current_path = result
+        current_page = 1
 
-        # 다운로드 후 처리
-        if next_path is None:
-            break
-        current_path = next_path
+
+def navigate_and_download(owner: str, repo_name: str, current_path: str):
+    """파일/폴더를 탐색하고 다운로드/뒤로가기 옵션을 제공합니다."""
+    # 파일/폴더 목록 가져오기
+    items = list_archive_files(repo_name, owner, current_path)
+    if not items:
+        console.print("[warning]파일이나 폴더가 없습니다.[/]")
+        return
+
+    # 페이지네이션 및 다운로드 처리
+    _handle_pagination_menu(
+        files=items,
+        process_selection_func=_process_download_selection,
+        repo_name=repo_name,
+        owner=owner,
+        current_path=current_path,
+        border_style="cyan",
+        title_prefix="레포지토리의 파일 목록 ",
+    )
 
 
 def download_item(owner: str, repo_name: str, item: Dict):
@@ -412,60 +512,22 @@ def _process_delete_selection(
 
 def navigate_and_delete(owner: str, repo_name: str, current_path: str):
     """파일/폴더를 탐색하고 삭제/뒤로가기 옵션을 제공합니다."""
-    while True:
-        # 파일/폴더 목록 가져오기
-        items = list_archive_files(repo_name, owner, current_path)
-        if not items:
-            console.print("[warning]파일이나 폴더가 없습니다. 상위 폴더로 이동합니다.[/]")
-            if current_path == "files":
-                return
-            current_path = str(Path(current_path).parent)
-            continue
+    # 파일/폴더 목록 가져오기
+    items = list_archive_files(repo_name, owner, current_path)
+    if not items:
+        console.print("[warning]파일이나 폴더가 없습니다. 상위 폴더로 이동합니다.[/]")
+        return
 
-        # 메뉴 표시
-        console.clear()
-        console.print(Panel(f"[bold]{current_path}[/] 경로의 내용", border_style="red"))
-
-        table = Table(show_header=True)
-        table.add_column("#", style="red")
-        table.add_column("이름", style="green")
-        table.add_column("타입", style="yellow")
-
-        for i, item in enumerate(items, 1):
-            table.add_row(str(i), item["name"], item["type"])
-
-        console.print(table)
-
-        console.print("\n[bold]명령어:[/]")
-        console.print(" 번호: 삭제할 파일/폴더 선택")
-        console.print(" b: 뒤로가기")
-        console.print(" q: 종료")
-
-        # 사용자 선택 처리
-        choice = Prompt.ask("선택").strip().lower()
-
-        # 종료 및 뒤로가기 처리
-        if choice == "q":
-            break
-        elif choice == "b":
-            if current_path == "files":
-                break
-            current_path = str(Path(current_path).parent)
-            continue
-
-        # 선택 검증
-        index = _validate_delete_choice(choice, len(items))
-        if index is None:
-            continue
-
-        # 선택된 항목 처리
-        selected_item = items[index - 1]
-        next_path = _process_delete_selection(owner, repo_name, current_path, selected_item)
-
-        # 삭제 후 처리
-        if next_path is None:
-            break
-        current_path = next_path
+    # 페이지네이션 및 삭제 처리
+    _handle_pagination_menu(
+        files=items,
+        process_selection_func=_process_delete_selection,
+        repo_name=repo_name,
+        owner=owner,
+        current_path=current_path,
+        border_style="red",
+        title_prefix="경로의 내용 ",
+    )
 
 
 def delete_single_file(owner: str, repo_name: str, file_item: Dict):
