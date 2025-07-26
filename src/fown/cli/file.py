@@ -218,37 +218,6 @@ def load_file():
     navigate_and_download(owner, repo_name, "files")
 
 
-def _handle_directory_download(owner: str, repo_name: str, selected_item: Dict) -> Optional[str]:
-    """디렉토리 다운로드를 처리합니다."""
-    action = Prompt.ask(
-        f"'{selected_item['name']}'은(는) 디렉토리입니다. 전체 다운로드(y) 또는 폴더 진입(n) 중 선택하세요.",
-        choices=["y", "n"],
-        default="y",
-    )
-    if action == "y":
-        download_directory(owner, repo_name, selected_item["path"])
-        return None  # 다운로드 후 종료
-    else:
-        return selected_item["path"]  # 폴더 진입
-
-
-def _validate_user_choice(choice: str, items_length: int) -> Optional[int]:
-    """사용자 선택을 검증하고 유효한 인덱스를 반환합니다."""
-    if not choice.isdigit():
-        console.print("[warning]숫자를 입력해주세요.[/]")
-        return None
-
-    try:
-        index = int(choice)
-        if 1 <= index <= items_length:
-            return index
-        console.print("[warning]잘못된 선택입니다.[/]")
-        return None
-    except ValueError:
-        console.print("[warning]유효한 숫자를 입력해주세요.[/]")
-        return None
-
-
 def _process_download_selection(
     owner: str, repo_name: str, current_path: str, selected_item: Dict
 ) -> Optional[str]:
@@ -350,6 +319,57 @@ def _validate_page_choice(
     return "retry"
 
 
+def _display_pagination_menu_options(total_pages: int, page_files_length: int) -> None:
+    """페이지네이션 메뉴 옵션을 표시합니다."""
+    console.print("\n[bold]명령어:[/]")
+    if total_pages > 1:
+        console.print(f" 1-{page_files_length}: 항목 선택")
+        console.print(" n: 다음 페이지")
+        console.print(" p: 이전 페이지")
+    else:
+        console.print(f" 1-{page_files_length}: 항목 선택")
+    console.print(" b: 뒤로가기")
+    console.print(" q: 종료")
+
+
+def _process_pagination_choice(
+    choice: str,
+    page_files: List[Dict],
+    current_page: int,
+    total_pages: int,
+    process_selection_func: Callable,
+    owner: str,
+    repo_name: str,
+    current_path: str,
+) -> Optional[str]:
+    """페이지네이션 선택을 처리합니다."""
+    # 선택 검증 및 처리
+    validation_result = _validate_page_choice(choice, page_files, current_page, total_pages)
+
+    # 결과에 따른 처리
+    if validation_result is None:
+        return None
+    elif validation_result == "back":
+        if current_path == "files":
+            return None
+        return str(Path(current_path).parent)
+    elif validation_result == "next":
+        return "next_page"
+    elif validation_result == "prev":
+        return "prev_page"
+    elif validation_result == "retry":
+        return "retry"
+
+    # 항목 선택 처리
+    selected_item = page_files[validation_result - 1]
+    result = process_selection_func(owner, repo_name, current_path, selected_item)
+
+    # 결과에 따른 처리
+    if result is None:
+        return None
+    return result
+
+
 def _handle_pagination_menu(
     files: List[Dict],
     process_selection_func: Callable,
@@ -365,11 +385,17 @@ def _handle_pagination_menu(
     current_page = 1
 
     while True:
+        # 파일/폴더 목록 가져오기
+        items = list_archive_files(repo_name, owner, current_path)
+        if not items:
+            console.print("[warning]파일이나 폴더가 없습니다.[/]")
+            return None
+
         # 페이지네이션 계산
-        total_pages = (len(files) + page_size - 1) // page_size
+        total_pages = (len(items) + page_size - 1) // page_size
         start_index = (current_page - 1) * page_size
         end_index = start_index + page_size
-        page_files = files[start_index:end_index]
+        page_files = items[start_index:end_index]
 
         # 메뉴 표시
         _display_paginated_menu(
@@ -377,47 +403,37 @@ def _handle_pagination_menu(
         )
 
         # 명령어 안내
-        console.print("\n[bold]명령어:[/]")
-        if total_pages > 1:
-            console.print(f" 1-{len(page_files)}: 항목 선택")
-            console.print(" n: 다음 페이지")
-            console.print(" p: 이전 페이지")
-        else:
-            console.print(f" 1-{len(page_files)}: 항목 선택")
-        console.print(" b: 뒤로가기")
-        console.print(" q: 종료")
+        _display_pagination_menu_options(total_pages, len(page_files))
 
         # 사용자 선택 처리
         choice = Prompt.ask("선택").strip().lower()
 
-        # 선택 검증 및 처리
-        validation_result = _validate_page_choice(choice, page_files, current_page, total_pages)
-
-        # 결과에 따른 처리
-        if validation_result is None:
-            return None
-        elif validation_result == "back":
-            if current_path == "files":
-                return None
-            return str(Path(current_path).parent)
-        elif validation_result == "next":
-            current_page += 1
-            continue
-        elif validation_result == "prev":
-            current_page -= 1
-            continue
-        elif validation_result == "retry":
-            continue
-
-        # 항목 선택 처리 (validation_result는 이제 확실히 int)
-        selected_item = page_files[validation_result - 1]
-        result = process_selection_func(owner, repo_name, current_path, selected_item)
+        # 선택 처리
+        result = _process_pagination_choice(
+            choice,
+            page_files,
+            current_page,
+            total_pages,
+            process_selection_func,
+            owner,
+            repo_name,
+            current_path,
+        )
 
         # 결과에 따른 처리
         if result is None:
             return None
+        elif result == "next_page":
+            current_page += 1
+            continue
+        elif result == "prev_page":
+            current_page -= 1
+            continue
+        elif result == "retry":
+            continue
+
         current_path = result
-        current_page = 1
+        current_page = 1  # 새로운 경로로 이동 시 첫 페이지로 리셋
 
 
 def navigate_and_download(owner: str, repo_name: str, current_path: str):
@@ -514,23 +530,6 @@ def delete_file():
     navigate_and_delete(owner, repo_name, "files")
 
 
-def _validate_delete_choice(choice: str, items_length: int) -> Optional[int]:
-    """삭제 선택을 검증하고 유효한 인덱스를 반환합니다."""
-    if not choice.isdigit():
-        console.print("[warning]숫자를 입력해주세요.[/]")
-        return None
-
-    try:
-        index = int(choice)
-        if 1 <= index <= items_length:
-            return index
-        console.print("[warning]잘못된 선택입니다.[/]")
-        return None
-    except ValueError:
-        console.print("[warning]유효한 숫자를 입력해주세요.[/]")
-        return None
-
-
 def _process_delete_selection(
     owner: str, repo_name: str, current_path: str, selected_item: Dict
 ) -> Optional[str]:
@@ -540,7 +539,7 @@ def _process_delete_selection(
         action = Prompt.ask(
             f"'{selected_item['name']}'은(는) 디렉토리입니다. 전체 삭제(y) 또는 폴더 진입(n) 중 선택하세요.",
             choices=["y", "n"],
-            default="n",
+            default="y",
         )
         if action == "y":
             # 디렉토리 삭제 확인
@@ -551,7 +550,7 @@ def _process_delete_selection(
             )
             if confirm == "y":
                 delete_directory_recursive(owner, repo_name, selected_item["path"])
-                return None  # 삭제 후 종료
+                return current_path  # 현재 경로 유지하여 목록 새로고침
             return current_path
         else:
             return selected_item["path"]  # 폴더 진입
@@ -564,20 +563,15 @@ def _process_delete_selection(
         )
         if confirm == "y":
             delete_single_file(owner, repo_name, selected_item)
+            return current_path  # 현재 경로 유지하여 목록 새로고침
         return current_path
 
 
 def navigate_and_delete(owner: str, repo_name: str, current_path: str):
     """파일/폴더를 탐색하고 삭제/뒤로가기 옵션을 제공합니다."""
-    # 파일/폴더 목록 가져오기
-    items = list_archive_files(repo_name, owner, current_path)
-    if not items:
-        console.print("[warning]파일이나 폴더가 없습니다. 상위 폴더로 이동합니다.[/]")
-        return
-
     # 페이지네이션 및 삭제 처리
     _handle_pagination_menu(
-        files=items,
+        files=list_archive_files(repo_name, owner, current_path),
         process_selection_func=_process_delete_selection,
         repo_name=repo_name,
         owner=owner,
