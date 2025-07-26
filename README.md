@@ -12,6 +12,7 @@ GitHub CLI를 활용하여 GitHub 레이블과 프로젝트를 자동화하는 �
   - [파일 관리](#파일-관리)
 - [기능](#기능)
   - [auth](#auth)
+  - [file][#file]
   - [make-fown-archive](#make-fown-archive)
 - [요구사항](#요구사항)
 - [문서](#문서)
@@ -118,6 +119,27 @@ fown auth logout
 ```bash
 # 로그인 상태
 fown auth status
+```
+
+<h3 id="file">file</h3>
+
+- 기본 레포지토리에서 파일 관리
+
+---
+
+```bash
+# 기본 레포지토리에 파일저장
+fown file add <filename>
+```
+
+```bash
+# 기본 레포지토리에서 파일 다운로드
+fown file load
+```
+
+```bash
+# 기본 레포지토리에서 파일삭제
+fown file delete
 ```
 
 <h3 id="make-fown-archive">make-fown-archive</h3>
