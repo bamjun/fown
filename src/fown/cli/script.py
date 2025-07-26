@@ -189,7 +189,7 @@ def _handle_script_pagination_menu(
     files: List[Dict],
     repo_name: str,
     owner: str,
-    action_func: Callable[[str], None],
+    action_func: Callable[[Dict], None],
     page_size: int = 5,
     columns: Optional[List[Dict[str, str]]] = None,
 ) -> None:
@@ -243,10 +243,8 @@ def _handle_script_pagination_menu(
             index = int(choice)
             if 1 <= index <= len(page_files):
                 selected_file = page_files[index - 1]
-                script_path_temp = get_script_file_content(repo_name, owner, selected_file["path"])
-                if script_path_temp:
-                    action_func(script_path_temp)
-                    break
+                action_func(selected_file)
+                break
             else:
                 console.print("[warning]잘못된 선택입니다.[/warning]")
         except ValueError:
@@ -301,50 +299,6 @@ def add_script(script_path: str):
         console.print(f"[error]Failed to add script '{file_name}'.[/error]")
 
 
-@script_group.command(name="delete")
-def delete_script():
-    """Delete a script from the archive repository."""
-    found, repo_name, owner = find_default_archive_repo()
-    if not found or not repo_name or not owner:
-        console.print("[error]Default archive repository not found.[/error]")
-        return
-
-    files = list_archive_script_files(repo_name, owner)
-    if not files:
-        console.print("[warning]No scripts found to delete.[/warning]")
-        return
-
-    for i, file in enumerate(files, 1):
-        console.print(f"{i}. {file['name']}")
-    choice_str = Prompt.ask(
-        "Select a script to delete by number", choices=[str(i) for i in range(1, len(files) + 1)]
-    )
-    choice = int(choice_str) - 1
-
-    selected_file = files[choice]
-
-    if (
-        not Prompt.ask(
-            f"Are you sure you want to delete '{selected_file['name']}'?", choices=["y", "n"]
-        )
-        == "y"
-    ):
-        console.print("Deletion cancelled.")
-        return
-
-    endpoint = f"repos/{owner}/{repo_name}/contents/{selected_file['path']}"
-    data = {
-        "message": f"Delete script: {selected_file['name']}",
-        "sha": selected_file["sha"],
-    }
-
-    try:
-        make_github_api_request("DELETE", endpoint, data=data)
-        console.print(f"[success]Script '{selected_file['name']}' deleted.[/success]")
-    except SystemExit:
-        console.print("[error]Failed to delete script.[/error]")
-
-
 @script_group.command(name="load")
 def load_script():
     """Download a script from the archive repository."""
@@ -358,13 +312,64 @@ def load_script():
         console.print("[warning]No scripts found to load.[/warning]")
         return
 
-    def download_action(script_path_temp: str):
+    def download_action(selected_file: Dict):
         """다운로드 액션 함수"""
-        dest_path = Path.cwd() / Path(script_path_temp).name
-        # move the file
-        shutil.move(script_path_temp, dest_path)
-        console.print(f"[success]Script downloaded to {dest_path}[/success]")
+        script_path_temp = get_script_file_content(repo_name, owner, selected_file["path"])
+        if script_path_temp:
+            dest_path = Path.cwd() / selected_file["name"]
+            # move the file
+            shutil.move(script_path_temp, dest_path)
+            console.print(f"[success]Script downloaded to {dest_path}[/success]")
 
     _handle_script_pagination_menu(
         files=files, repo_name=repo_name, owner=owner, action_func=download_action
+    )
+
+
+@script_group.command(name="delete")
+def delete_script():
+    """Delete a script from the archive repository."""
+    found, repo_name, owner = find_default_archive_repo()
+    if not found or not repo_name or not owner:
+        console.print("[error]Default archive repository not found.[/error]")
+        return
+
+    files = list_archive_script_files(repo_name, owner)
+    if not files:
+        console.print("[warning]No scripts found to delete.[/warning]")
+        return
+
+    def delete_action(selected_file: Dict):
+        """스크립트 삭제 액션 함수"""
+        if (
+            not Prompt.ask(
+                f"Are you sure you want to delete '{selected_file['name']}'?", choices=["y", "n"]
+            )
+            == "y"
+        ):
+            console.print("Deletion cancelled.")
+            return
+
+        endpoint = f"repos/{owner}/{repo_name}/contents/{selected_file['path']}"
+        data = {
+            "message": f"Delete script: {selected_file['name']}",
+            "sha": selected_file["sha"],
+        }
+
+        try:
+            make_github_api_request("DELETE", endpoint, data=data)
+            console.print(f"[success]Script '{selected_file['name']}' deleted.[/success]")
+        except SystemExit:
+            console.print("[error]Failed to delete script.[/error]")
+
+    _handle_script_pagination_menu(
+        files=files,
+        repo_name=repo_name,
+        owner=owner,
+        action_func=delete_action,
+        columns=[
+            {"name": "#", "style": "cyan"},
+            {"name": "파일명", "style": "green"},
+            {"name": "타입", "style": "yellow"},
+        ],
     )
