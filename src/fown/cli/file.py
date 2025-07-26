@@ -103,19 +103,67 @@ def upload_file(file_path: Path, owner: str, repo_name: str, base_repo_path: str
         repo_file_path = f"{base_repo_path}/{file_path.name}"
         endpoint = f"repos/{owner}/{repo_name}/contents/{repo_file_path}"
 
+        # 기존 파일 존재 여부 확인
+        try:
+            existing_file = make_github_api_request("GET", endpoint)
+        except SystemExit:
+            existing_file = None
+
+        # 파일 존재 시 처리
+        if existing_file and isinstance(existing_file, dict):
+            # 사용자에게 선택지 제공
+            console.print(f"[yellow]파일 '{file_path.name}'이(가) 이미 존재합니다.[/]")
+            console.print("[bold]작업을 선택하세요:[/]")
+            console.print(" [bold green]o[/] 덮어쓰기")
+            console.print(" [bold green]s[/] 새 이름으로 저장")
+            console.print(" [bold green]n[/] 취소")
+
+            action = Prompt.ask("선택", choices=["o", "s", "n"], default="n")
+
+            if action == "n":
+                console.print("[info]파일 업로드가 취소되었습니다.[/]")
+                return
+
+            if action == "s":
+                # 새 이름 생성 (파일명_숫자.확장자)
+                base_name = file_path.stem
+                ext = file_path.suffix
+                counter = 1
+                while True:
+                    new_filename = f"{base_name}_{counter}{ext}"
+                    new_repo_path = f"{base_repo_path}/{new_filename}"
+                    try:
+                        make_github_api_request(
+                            "GET", f"repos/{owner}/{repo_name}/contents/{new_repo_path}"
+                        )
+                        counter += 1
+                    except SystemExit:
+                        # 새 파일명으로 경로 업데이트
+                        repo_file_path = new_repo_path
+                        break
+
         with Progress(
             SpinnerColumn(), TextColumn("[progress.description]{task.description}"), console=console
         ) as progress:
-            progress.add_task(description=f"[cyan]파일 업로드 중: {file_path.name}[/]", total=None)
+            progress.add_task(
+                description=f"[cyan]파일 업로드 중: {Path(repo_file_path).name}[/]", total=None
+            )
 
             payload = {
-                "message": f"Add file: {file_path.name}",
+                "message": f"Add file: {Path(repo_file_path).name}",
                 "content": content_base64,
                 "branch": "main",
             }
-            make_github_api_request("PUT", endpoint, data=payload)
+
+            # 기존 파일 덮어쓰기의 경우 SHA 추가
+            if existing_file and isinstance(existing_file, dict) and "sha" in existing_file:
+                payload["sha"] = existing_file["sha"]
+
+            make_github_api_request(
+                "PUT", f"repos/{owner}/{repo_name}/contents/{repo_file_path}", data=payload
+            )
             console.print(
-                f"[success]파일 [bold]{file_path.name}[/]이(가) 성공적으로 업로드되었습니다![/]"
+                f"[success]파일 [bold]{Path(repo_file_path).name}[/]이(가) 성공적으로 업로드되었습니다![/]"
             )
 
     except (SystemExit, Exception) as e:
