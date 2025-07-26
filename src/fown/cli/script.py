@@ -118,21 +118,57 @@ def run_script(script_path: str):
         elif script_path.endswith(".sh"):
             # Make script executable
             os.chmod(script_path, 0o755)
-            result = subprocess.run(
-                ["bash", script_path], capture_output=True, text=True, check=False
-            )
+
+            # Windows에서 bash 실행 방식 개선
+            if sys.platform == "win32":
+                # Git Bash 또는 WSL bash 사용
+                bash_paths = [
+                    r"C:\Program Files\Git\bin\bash.exe",  # Git Bash
+                    r"C:\Windows\System32\bash.exe",  # WSL Bash
+                    "/usr/bin/bash",  # Unix-like systems
+                ]
+
+                bash_path = next((path for path in bash_paths if os.path.exists(path)), None)
+
+                if bash_path:
+                    result = subprocess.run(
+                        [bash_path, script_path],
+                        capture_output=True,
+                        text=True,
+                        check=False,
+                        env={**os.environ, "MSYS": "winsymlinks:nativestrict"},
+                    )
+                else:
+                    # Fallback to default shell execution
+                    result = subprocess.run(
+                        ["bash", script_path], capture_output=True, text=True, check=False
+                    )
+            else:
+                # Unix-like systems
+                result = subprocess.run(
+                    ["bash", script_path], capture_output=True, text=True, check=False
+                )
         else:
             console.print(f"[error]Unsupported script type: {script_path}[/error]")
             return
 
-        if result.stdout:
-            console.print(Panel(result.stdout, title="Script Output", border_style="green"))
-        if result.stderr:
-            console.print(Panel(result.stderr, title="Script Error", border_style="red"))
+        # 성공적인 실행의 경우 출력만 표시
+        if result.stdout.strip():
+            console.print(Panel(result.stdout.strip(), title="Script Output", border_style="green"))
 
+        # 에러 출력은 실제 에러가 있는 경우에만 표시
+        if result.stderr.strip() and result.returncode != 0:
+            console.print(Panel(result.stderr.strip(), title="Script Error", border_style="red"))
+
+    except Exception as e:
+        console.print(f"[error]Script execution error: {e}[/error]")
     finally:
+        # 스크립트 실행 후 임시 파일 삭제
         if os.path.exists(script_path):
-            os.unlink(script_path)
+            try:
+                os.unlink(script_path)
+            except Exception as e:
+                console.print(f"[warning]Could not delete temporary script file: {e}[/warning]")
 
 
 def _display_paginated_menu(
@@ -264,8 +300,14 @@ def use_script():
         console.print("[warning]No scripts found in the archive.[/warning]")
         return
 
+    def use_action(selected_file: Dict):
+        """스크립트 실행 액션 함수"""
+        script_path_temp = get_script_file_content(repo_name, owner, selected_file["path"])
+        if script_path_temp:
+            run_script(script_path_temp)
+
     _handle_script_pagination_menu(
-        files=files, repo_name=repo_name, owner=owner, action_func=run_script
+        files=files, repo_name=repo_name, owner=owner, action_func=use_action
     )
 
 
