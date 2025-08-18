@@ -12,7 +12,7 @@ GitHub CLI를 활용하여 GitHub 레이블과 프로젝트를 자동화하는 �
   - [파일 관리](#파일-관리)
 - [기능](#기능)
   - [auth](#auth)
-  - [file][#file]
+  - [file](#file)
   - [make-fown-archive](#make-fown-archive)
 - [요구사항](#요구사항)
 - [문서](#문서)
