@@ -322,10 +322,21 @@ def apply_labels_to_repo(labels: List[Label], repo_full_name: str) -> int:
 @labels_group.command(name="sync")
 @click.option("--repo-url", default=None, help="Target GitHub Repository URL.")
 @click.option("--labels-file", "-f", default=None, help="Path to labels YAML/JSON file.")
+@click.option("--gist-url", default=None, help="GitHub Gist URL containing JSON labels file.")
 @click.option("--archive", is_flag=True, help="Use labels from an archive repository.")
 @click.confirmation_option(prompt="Delete all existing labels and apply new ones?")
-def sync_labels(repo_url: Optional[str], labels_file: Optional[str], archive: bool):
+def sync_labels(
+    repo_url: Optional[str], labels_file: Optional[str], gist_url: Optional[str], archive: bool
+):
     """Synchronize labels by deleting all old ones and applying new ones."""
+    # Check for conflicting options
+    option_count = sum(1 for opt in [labels_file, gist_url, archive] if opt)
+    if option_count > 1:
+        console.print(
+            "[error]Only one of --labels-file, --gist-url, or --archive can be used at a time.[/]"
+        )
+        return
+
     if not repo_url:
         repo_url = get_git_repo_url()
     repo = Repository.from_url(repo_url)
@@ -336,6 +347,8 @@ def sync_labels(repo_url: Optional[str], labels_file: Optional[str], archive: bo
 
     if labels_file:
         labels = Config.load_labels(labels_file)
+    elif gist_url:
+        labels = load_labels_from_gist_url(gist_url)
     else:
         found, repo_name, owner = find_default_archive_repo()
         if found and repo_name and owner:
