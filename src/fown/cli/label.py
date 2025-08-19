@@ -5,6 +5,7 @@
 import base64
 import json
 import os
+import re
 import tempfile
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -112,6 +113,51 @@ def load_labels_from_json(file_path: str) -> List[Label]:
         return [Label.from_dict(item) for item in data]
     except (IOError, json.JSONDecodeError) as e:
         console.print(f"[error]레이블 파일 로드 실패:[/] {str(e)}")
+        return []
+
+
+def load_labels_from_gist_url(gist_url: str) -> List[Label]:
+    """Load labels from a GitHub Gist URL."""
+    try:
+        # Extract gist ID from URL
+        # https://gist.github.com/username/gist_id or https://gist.github.com/gist_id
+        gist_id_match = re.search(r"gist\.github\.com/(?:[^/]+/)?([a-f0-9]+)", gist_url)
+        if not gist_id_match:
+            console.print("[error]유효하지 않은 Gist URL입니다.[/]")
+            return []
+
+        gist_id = gist_id_match.group(1)
+
+        # Get gist content via GitHub API
+        gist_data = make_github_api_request("GET", f"gists/{gist_id}")
+        if not isinstance(gist_data, dict):
+            console.print("[error]Gist 데이터를 가져올 수 없습니다.[/]")
+            return []
+
+        # Find JSON file in gist
+        files = gist_data.get("files", {})
+        json_file = None
+
+        for filename, file_info in files.items():
+            if filename.endswith(".json"):
+                json_file = file_info
+                break
+
+        if not json_file:
+            console.print("[error]Gist에 JSON 파일을 찾을 수 없습니다.[/]")
+            return []
+
+        # Parse JSON content
+        content = json_file.get("content", "")
+        if not content:
+            console.print("[error]Gist 파일이 비어있습니다.[/]")
+            return []
+
+        data = json.loads(content)
+        return [Label.from_dict(item) for item in data]
+
+    except (json.JSONDecodeError, SystemExit) as e:
+        console.print(f"[error]Gist에서 레이블 로드 실패:[/] {str(e)}")
         return []
 
 
@@ -337,15 +383,36 @@ def clear_all_labels(repo_url: Optional[str]):
 
 @labels_group.command(name="apply")
 @click.option("--repo-url", default=None, help="Target GitHub Repository URL.")
-@click.option("--labels-file", "-f", required=True, help="Path to labels YAML/JSON file.")
-def apply_labels(repo_url: Optional[str], labels_file: str):
-    """Create or update labels from a file."""
+@click.option("--labels-file", "-f", help="Path to labels YAML/JSON file.")
+@click.option("--gist-url", help="GitHub Gist URL containing JSON labels file.")
+def apply_labels(repo_url: Optional[str], labels_file: Optional[str], gist_url: Optional[str]):
+    """Create or update labels from a file or Gist URL."""
+    # Check that either labels_file or gist_url is provided
+    if not labels_file and not gist_url:
+        console.print("[error]Either --labels-file or --gist-url must be provided.[/]")
+        return
+
+    if labels_file and gist_url:
+        console.print(
+            "[error]Cannot use both --labels-file and --gist-url options at the same time.[/]"
+        )
+        return
+
     if not repo_url:
         repo_url = get_git_repo_url()
     repo = Repository.from_url(repo_url)
     console.print(f"[info]Applying labels to [bold]{repo.full_name}[/]...[/]")
 
-    labels = Config.load_labels(labels_file)
+    # Load labels from file or gist
+    if labels_file:
+        labels = Config.load_labels(labels_file)
+    else:  # gist_url
+        labels = load_labels_from_gist_url(str(gist_url))
+
+    if not labels:
+        console.print("[error]No labels found to apply.[/]")
+        return
+
     console.print(f"[info]Loaded {len(labels)} labels.[/]")
 
     success_count = apply_labels_to_repo(labels, repo.full_name)
