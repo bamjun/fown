@@ -54,6 +54,9 @@ fown labels sync
 
 # 아카이브 레포지토리에서 동기화
 fown labels sync --archive
+
+# gist url 로 동기화
+fown labels sync --gist-url https://gist.github.com/bamjun/09cdc4efefb7abb58717025aa2ba3cfc#file-backend_github_labels-json
 ```
 
 <h3 id="스크립트-관리">스크립트 관리</h3>  
