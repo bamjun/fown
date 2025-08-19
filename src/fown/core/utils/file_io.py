@@ -37,7 +37,7 @@ def make_github_api_request(
     """GitHub API에 인증된 요청을 보냅니다."""
     token = load_token()
     if not token:
-        console.print("[error]로그인이 필요합니다. 'fown login start'를 실행하세요.[/]")
+        console.print("[error]로그인이 필요합니다. 'fown auth login'를 실행하세요.[/]")
         raise SystemExit(1)
 
     headers = {
@@ -59,7 +59,7 @@ def make_github_api_request(
     except requests.exceptions.HTTPError as e:
         if e.response.status_code == 401:
             console.print(
-                "[error]인증 실패. 토큰이 유효하지 않거나 만료되었습니다. 'fown login start'로 다시 로그인하세요.[/]"
+                "[error]인증 실패. 토큰이 유효하지 않거나 만료되었습니다. 'fown auth login'로 다시 로그인하세요.[/]"
             )
         elif e.response.status_code == 404:
             console.print(f"[error]찾을 수 없음: {url}[/]")
