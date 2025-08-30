@@ -105,8 +105,10 @@ def create_fown_config_files(
         readme_content += (
             "## 포함된 설정\n\n"
             "- `.fown/config.yml`: 아카이브 레포지토리의 설정 파일\n"
-            "- `labels/default_labels.json`: 레이블 템플릿\n"
-            "- `scripts/hello_world.sh`: 예제 스크립트\n"
+            "- `labels/`: 레이블 폴더\n"
+            "- `labels/default_labels.json`: 기본 레이블 템플릿\n"
+            "- `scripts/`: 스크립트 폴더\n"
+            "- `files/`: 파일 폴더\n"
         )
         create_file_in_repo(
             repo_owner, repo_name, "README.md", readme_content, "Initial commit: Add README.md"
