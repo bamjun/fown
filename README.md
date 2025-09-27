@@ -14,6 +14,7 @@ GitHub CLI를 활용하여 GitHub 레이블과 프로젝트를 자동화하는 �
   - [auth](#auth)
   - [file](#file)
   - [make-fown-archive](#make-fown-archive)
+  - [noti](#noti)
 - [요구사항](#요구사항)
 - [문서](#문서)
 - [라이선스](#라이선스)
@@ -145,6 +146,7 @@ fown file load
 fown file delete
 ```
 
+
 <h3 id="make-fown-archive">make-fown-archive</h3>
 
 - 로그인한 유저의 깃허브 레포지토리에 기본 레포지토리 생성
@@ -154,6 +156,30 @@ fown file delete
 ```bash
 # 기본 레포지토리 생성
 fown make-fown-archive
+```
+
+<h3 id="noti">noti</h3>
+- github notifications 알림 읽음 처리
+
+
+```bash
+# 알림별 읽음 처리
+fown noti delete
+```
+
+```bash
+# 레포별 전체 알림 읽음처리
+fown noti delete -r
+```
+
+```bash
+# 특정레포 전체 알림 읽음 처리
+fown noti delete owner/repo
+```
+
+```bash
+# 특정레포 전체 알림 읽음 처리
+fown noti delete owner/repo -r
 ```
 
 
