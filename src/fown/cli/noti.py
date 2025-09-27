@@ -98,49 +98,65 @@ def _render_page(notifications: List[Dict[str, Any]], page: int, total_pages: in
     console.print(table)
 
 
-def _handle_page_navigation(page: int, total_pages: int, choice: str) -> Optional[int]:
-    """Handle page navigation logic."""
+def _parse_target_params(
+    target: Optional[str], owner: Optional[str], repo: Optional[str]
+) -> tuple[Optional[str], Optional[str]]:
+    """Parse target parameter and merge with owner/repo options."""
+    target = target.strip() if target else None
+    owner = owner.strip() if owner else None
+    repo = repo.strip() if repo else None
+
+    if target:
+        if "/" in target:
+            target_owner, target_repo = target.split("/", 1)
+            owner = target_owner.strip() or owner
+            repo = target_repo.strip() or repo
+        else:
+            repo = target
+
+    env_owner = os.getenv("FOWN_NOTI_OWNER") or os.getenv("OWNER")
+    env_repo = os.getenv("FOWN_NOTI_REPO") or os.getenv("REPO")
+
+    owner = owner or (env_owner.strip() if env_owner else None)
+    repo = repo or (env_repo.strip() if env_repo else None)
+
+    return owner, repo
+
+
+def _handle_user_choice(choice: str, page: int, total_pages: int) -> tuple[Optional[str], int]:
+    """Handle user input and return processed choice and updated page number."""
+    if choice == "q":
+        return "quit", page
     if choice == "n":
-        return page + 1 if page < total_pages - 1 else page
+        if page < total_pages - 1:
+            return "continue", page + 1
+        else:
+            console.print("[warning]Already at the last page.")
+            return "continue", page
     if choice == "p":
-        return page - 1 if page > 0 else page
-    return None
+        if page > 0:
+            return "continue", page - 1
+        else:
+            console.print("[warning]Already at the first page.")
+            return "continue", page
 
-
-def _process_notification_selection(
-    notifications: List[Dict[str, Any]], page: int, choice: str
-) -> Optional[Dict[str, Any]]:
-    """Process notification selection and return the selected notification."""
     if choice not in KEY_TO_INDEX:
         console.print("[warning]Unknown command. Use 1-0, n, p, or q.")
-        return None
+        return "continue", page
 
+    return "select", page
+
+
+def _process_notification_deletion(
+    notifications: List[Dict[str, Any]], page: int, choice: str
+) -> bool:
+    """Process notification deletion. Returns True if notification was deleted."""
     selected_index = page * PAGE_SIZE + KEY_TO_INDEX[choice]
     if selected_index >= len(notifications):
         console.print("[warning]No notification mapped to that key on this page.")
-        return None
+        return False
 
-    return notifications[selected_index]
-
-
-def _initialize_notifications(
-    owner: Optional[str], repo: Optional[str], unread_only: bool
-) -> tuple[List[Dict[str, Any]], Optional[str], Optional[str]]:
-    """Initialize and filter notifications based on parameters."""
-    owner = owner or os.getenv("FOWN_NOTI_OWNER") or os.getenv("OWNER")
-    repo = repo or os.getenv("FOWN_NOTI_REPO") or os.getenv("REPO")
-
-    include_all = not unread_only
-    raw_notifications = _fetch_notifications(include_all=include_all)
-    notifications = _filter_notifications(raw_notifications, owner=owner, repo=repo)
-
-    return notifications, owner, repo
-
-
-def _handle_notification_deletion(
-    selected: Dict[str, Any], notifications: List[Dict[str, Any]], page: int, choice: str
-) -> bool:
-    """Handle the deletion of a selected notification. Returns True if deleted."""
+    selected = notifications[selected_index]
     subject = selected.get("subject", {})
     repo_full = _extract_repo_slug(selected) or "-"
     title = subject.get("title", "(no title)")
@@ -155,16 +171,31 @@ def _handle_notification_deletion(
 
     make_github_api_request("DELETE", f"notifications/threads/{thread_id}")
     console.print(f"[success]Deleted notification: {title}")
-    notifications.pop(page * PAGE_SIZE + KEY_TO_INDEX[choice])
+    notifications.pop(selected_index)
     return True
 
 
-def _run_interactive_loop(
-    notifications: List[Dict[str, Any]], owner: Optional[str], repo: Optional[str]
-) -> None:
+def _get_user_input() -> Optional[str]:
+    """Get user input with proper exception handling."""
+    try:
+        choice = click.prompt("Select", default="", show_default=False)
+        return choice.strip().lower()
+    except click.Abort:
+        console.print("[warning]Input aborted. Exiting.")
+        return None
+    except EOFError:
+        console.print("[warning]Input closed. Exiting.")
+        return None
+
+
+def _run_notification_loop(notifications: List[Dict[str, Any]]) -> None:
     """Run the main interactive loop for notification management."""
     page = 0
-    while notifications:
+    while True:
+        if not notifications:
+            console.print("[success]No notifications remaining.")
+            return
+
         total_pages = max(1, (len(notifications) + PAGE_SIZE - 1) // PAGE_SIZE)
         page = max(0, min(page, total_pages - 1))
 
@@ -172,40 +203,26 @@ def _run_interactive_loop(
         _render_page(notifications, page, total_pages)
         console.print("[info]Commands: 1-0 delete, n next page, p previous page, q quit")
 
-        try:
-            choice = click.prompt("Select", default="", show_default=False)
-        except (click.Abort, EOFError):
-            console.print("[warning]Input aborted. Exiting.")
+        # Get user input
+        choice = _get_user_input()
+        if choice is None:
             return
-
-        choice = choice.strip().lower()
         if not choice:
             continue
 
-        if choice == "q":
+        # Handle user choice
+        action, page = _handle_user_choice(choice, page, total_pages)
+        if action == "quit":
             console.print("[info]Exit requested. No further changes made.")
             return
-
-        # Handle page navigation
-        nav_result = _handle_page_navigation(page, total_pages, choice)
-        if nav_result is not None:
-            if nav_result == page:
-                console.print(
-                    f"[warning]Already at the {'last' if choice == 'n' else 'first'} page."
-                )
-            else:
-                page = nav_result
+        elif action == "continue":
             continue
-
-        # Process notification selection and deletion
-        selected = _process_notification_selection(notifications, page, choice)
-        if not selected:
-            continue
-
-        if _handle_notification_deletion(selected, notifications, page, choice):
-            # Adjust page if needed
-            if page >= max(1, (len(notifications) + PAGE_SIZE - 1) // PAGE_SIZE):
-                page = max(0, page - 1)
+        elif action == "select":
+            # Process notification deletion
+            if _process_notification_deletion(notifications, page, choice):
+                # Adjust page if needed
+                if page >= max(1, (len(notifications) + PAGE_SIZE - 1) // PAGE_SIZE):
+                    page = max(0, page - 1)
 
 
 @click.group(name="noti")
@@ -214,6 +231,7 @@ def notifications_group() -> None:
 
 
 @notifications_group.command(name="delete")
+@click.argument("target", required=False)
 @click.option(
     "--owner",
     "-o",
@@ -230,11 +248,19 @@ def notifications_group() -> None:
     show_default=True,
     help="Show only unread notifications (default fetches all).",
 )
-def delete_notifications(owner: Optional[str], repo: Optional[str], unread_only: bool) -> None:
-    """Delete notifications with an interactive pager."""
-    # Initialize notifications and parameters
-    notifications, owner, repo = _initialize_notifications(owner, repo, unread_only)
-    raw_notifications = _fetch_notifications(include_all=not unread_only)
+def delete_notifications(
+    target: Optional[str], owner: Optional[str], repo: Optional[str], unread_only: bool
+) -> None:
+    """Delete notifications with an interactive pager.
+
+    Optionally provide TARGET as ``owner/repo`` (or just repo name) to apply filtering.
+    """
+    # Parse and initialize parameters
+    owner, repo = _parse_target_params(target, owner, repo)
+
+    include_all = not unread_only
+    raw_notifications = _fetch_notifications(include_all=include_all)
+    notifications = _filter_notifications(raw_notifications, owner=owner, repo=repo)
 
     # Check if any notifications were found
     if not notifications:
@@ -247,7 +273,7 @@ def delete_notifications(owner: Optional[str], repo: Optional[str], unread_only:
             console.print("[warning]No notifications found.")
         return
 
-    # Display filter information if applied
+    # Display filter information
     if owner or repo:
         console.print(
             "[info]Filter applied: "
@@ -255,5 +281,5 @@ def delete_notifications(owner: Optional[str], repo: Optional[str], unread_only:
             f"matched {len(notifications)}/{len(raw_notifications)} notifications."
         )
 
-    # Run the interactive loop
-    _run_interactive_loop(notifications, owner, repo)
+    # Run the main interactive loop
+    _run_notification_loop(notifications)
